@@ -13,7 +13,6 @@
       "expo-router",
       "expo-secure-store",
       "expo-web-browser",
-      "@clerk/clerk-expo",
       [
         "expo-build-properties",
         {
@@ -76,8 +75,7 @@
       "router": {},
       "eas": {
         "projectId": "71edecbc-766a-4baa-8bf0-36ec9bc3651d"
-      },
-      "clerkPublishableKey": "process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY"
+      }
     },
     "owner": "90dph"
   }
