@@ -5,14 +5,8 @@
     "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./app/*",
-        "./components/*",
-        "./lib/*",
-        "./hooks/*",
-        "./types/*",
-        "./utils/*"
-      ]
+      "@/*": ["./*"],
+      "~/*": ["./*"]
     }
   },
   "include": [
