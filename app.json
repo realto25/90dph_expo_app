@@ -3,7 +3,6 @@
     "name": "90-dph",
     "slug": "90-dph",
     "version": "1.0.0",
-
     "scheme": "90-dph",
     "web": {
       "bundler": "metro",
@@ -12,37 +11,38 @@
     },
     "plugins": [
       "expo-router",
-      [
-        "expo-dev-launcher",
-        {
-          "launchMode": "most-recent"
-        }
-      ]
+      "expo-secure-store",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
-
       "tsconfigPaths": true
     },
-
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-
     "userInterfaceStyle": "light",
-
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/splash.png",
         "backgroundColor": "#ffffff"
+      },
+      "package": "com.realestatex.x90dph"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b9177f0d-50a9-44e1-b586-1dbe4718df75"
       }
     }
   }
