@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "90-dph",
-    "slug": "90-dph",
+    "slug": "90-degree-pride-homes",
     "version": "1.0.0",
     "scheme": "90-dph",
     "web": {
@@ -30,7 +30,11 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.realestatex.x90dph",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -42,8 +46,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "b9177f0d-50a9-44e1-b586-1dbe4718df75"
+        "projectId": "71edecbc-766a-4baa-8bf0-36ec9bc3651d"
       }
-    }
+    },
+    "owner": "90dph"
   }
 }
