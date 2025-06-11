@@ -16,9 +16,6 @@
       [
         "expo-build-properties",
         {
-          "ios": {
-            "deploymentTarget": "13.0"
-          },
           "android": {
             "compileSdkVersion": 33,
             "targetSdkVersion": 33,
@@ -40,18 +37,6 @@
       "backgroundColor": "#ffffff"
     },
     "assetBundlePatterns": ["**/*"],
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.realestatex.x90dph",
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false,
-        "CFBundleURLTypes": [
-          {
-            "CFBundleURLSchemes": ["90-dph"]
-          }
-        ]
-      }
-    },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/splash.png",
