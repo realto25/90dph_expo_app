@@ -1,7 +1,7 @@
 import axios, { isAxiosError } from 'axios';
 
-// ✅ Base URL of your deployed Next.js backend
-const BASE_URL = 'https://main-admin-dashboard-orpin.vercel.app/api';
+// Base URL from environment variable
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.29.85:3000/api';
 
 // Axios instance
 const api = axios.create({

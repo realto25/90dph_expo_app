@@ -3,10 +3,10 @@ module.exports = function (api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
-      'expo-router/babel',
+      require.resolve('expo-router/babel'),
       'nativewind/babel',
       [
-        'module-resolver',
+        require.resolve('babel-plugin-module-resolver'),
         {
           root: ['.'],
           alias: {
@@ -15,6 +15,6 @@ module.exports = function (api) {
           }
         }
       ]
-    ],
+    ]
   };
 };
