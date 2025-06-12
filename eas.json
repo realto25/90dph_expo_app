@@ -1,6 +1,6 @@
 {
   "cli": {
-    "version": ">= 16.6.2",
+    "version": ">= 5.9.1",
     "appVersionSource": "remote"
   },
   "build": {
@@ -9,11 +9,11 @@
       "distribution": "internal",
       "android": {
         "gradleCommand": ":app:assembleDebug",
-        "buildType": "apk",
-        "withoutCredentials": true
+        "image": "ubuntu-22.04-jdk-17-ndk-r25b"
       },
       "ios": {
-        "resourceClass": "m-medium"
+        "resourceClass": "m-medium",
+        "buildConfiguration": "Debug"
       },
       "env": {
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_YOUR_CLERK_KEY",
@@ -24,7 +24,7 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk",
-        "withoutCredentials": true
+        "image": "ubuntu-22.04-jdk-17-ndk-r25b"
       },
       "ios": {
         "resourceClass": "m-medium"
@@ -38,7 +38,7 @@
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle",
-        "withoutCredentials": true
+        "image": "ubuntu-22.04-jdk-17-ndk-r25b"
       },
       "ios": {
         "resourceClass": "m-medium"
