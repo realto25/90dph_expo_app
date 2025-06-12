@@ -1,4 +1,4 @@
-// app/(tabs)/booking.tsx
+import { VisitRequest as ApiVisitRequest, getVisitRequests, submitFeedback } from '@/lib/api';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import NetInfo from '@react-native-community/netinfo';
@@ -20,11 +20,6 @@ import {
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  VisitRequest as ApiVisitRequest,
-  getVisitRequests,
-  submitFeedback,
-} from '../../../lib/api';
 
 // Types
 interface VisitRequest extends ApiVisitRequest {}
@@ -36,6 +31,8 @@ interface FeedbackState {
   purchaseInterest: boolean | null;
   submitted: boolean;
 }
+
+type IconName = 'person-circle-outline' | 'calendar-outline' | 'alert-circle-outline';
 
 const Booking: React.FC = () => {
   const { userId, isSignedIn } = useAuth();
@@ -60,7 +57,7 @@ const Booking: React.FC = () => {
 
   // Fetch bookings
   const fetchBookings = useCallback(async () => {
-    if (!isSignedIn) {
+    if (!isSignedIn || !userId) {
       setError('Please sign in to view your bookings');
       setLoading(false);
       return;
@@ -73,7 +70,7 @@ const Booking: React.FC = () => {
 
     try {
       setLoading(true);
-      const data = await getVisitRequests(userId!);
+      const data = await getVisitRequests(userId);
       setBookings(data);
       setFeedbackData(
         data.reduce(
@@ -83,7 +80,7 @@ const Booking: React.FC = () => {
               experience: '',
               suggestions: '',
               purchaseInterest: null,
-              submitted: false,
+              submitted: !!booking.feedback,
             };
             return acc;
           },
@@ -91,8 +88,9 @@ const Booking: React.FC = () => {
         )
       );
       setError(null);
-    } catch (err) {
-      setError('Failed to load bookings. Please try again.');
+    } catch (err: any) {
+      console.error('Error fetching bookings:', err.message);
+      setError(err.message || 'Failed to load bookings. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -108,7 +106,7 @@ const Booking: React.FC = () => {
   // Handle feedback submission
   const handleSubmitFeedback = useCallback(
     async (id: string) => {
-      if (!isSignedIn) {
+      if (!isSignedIn || !userId) {
         Alert.alert('Error', 'Please sign in to submit feedback');
         return;
       }
@@ -117,14 +115,14 @@ const Booking: React.FC = () => {
         return;
       }
 
-      const { rating, experience, suggestions, purchaseInterest } = feedbackData[id];
-
+      const feedback = feedbackData[id];
       if (
-        rating < 1 ||
-        rating > 5 ||
-        !experience.trim() ||
-        !suggestions.trim() ||
-        purchaseInterest === null
+        !feedback ||
+        feedback.rating < 1 ||
+        feedback.rating > 5 ||
+        !feedback.experience.trim() ||
+        !feedback.suggestions.trim() ||
+        feedback.purchaseInterest === null
       ) {
         Alert.alert('Error', 'Please complete all feedback fields');
         return;
@@ -135,11 +133,11 @@ const Booking: React.FC = () => {
       try {
         await submitFeedback({
           visitRequestId: id,
-          rating,
-          experience: experience.trim(),
-          suggestions: suggestions.trim(),
-          purchaseInterest,
-          clerkId: userId!,
+          rating: feedback.rating,
+          experience: feedback.experience.trim(),
+          suggestions: feedback.suggestions.trim(),
+          purchaseInterest: feedback.purchaseInterest,
+          clerkId: userId,
         });
 
         Alert.alert('Success', 'Your feedback has been submitted successfully.');
@@ -172,12 +170,11 @@ const Booking: React.FC = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Replace with actual API call when available
-              // await api.delete(`/visit-requests/${id}`);
+              // Placeholder for actual API call
               setBookings((prev) => prev.filter((booking) => booking.id !== id));
               Alert.alert('Success', 'Visit request cancelled successfully.');
             } catch (error: any) {
-              Alert.alert('Error', 'Failed to cancel visit. Please try again.');
+              Alert.alert('Error', error.message || 'Failed to cancel visit. Please try again.');
             }
           },
         },
@@ -228,7 +225,7 @@ const Booking: React.FC = () => {
           title="You don't have any upcoming visit requests yet."
           iconName="calendar-outline"
           buttonText="Book a Visit"
-          onPress={() => router.push('/Explore')}
+          onPress={() => router.push({ pathname: '(tabs)/Explore' })}
         />
       );
     }
@@ -284,12 +281,12 @@ const Booking: React.FC = () => {
 // Components
 const EmptyState: React.FC<{
   title: string;
-  iconName: string;
+  iconName: IconName;
   buttonText: string;
   onPress: () => void;
 }> = ({ title, iconName, buttonText, onPress }) => (
   <View style={styles.emptyState}>
-    <Ionicons name={iconName} size={80} color="#6B7280" />
+    <Ionicons name={iconName as any} size={80} color="#6B7280" />
     <Text style={styles.emptyStateText}>{title}</Text>
     <TouchableOpacity
       onPress={onPress}
@@ -411,8 +408,7 @@ const BookingItem: React.FC<{
 const QrCodeSection: React.FC<{ item: VisitRequest }> = ({ item }) => {
   const expiresAtDate = item.expiresAt ? new Date(item.expiresAt) : null;
   const isQrCodeExpired = expiresAtDate ? expiresAtDate < new Date() : false;
-  // Use visit request ID as QR code value to avoid data size issue
-  const qrCodeValue = item.id; // e.g., "cmbdvotg10002ji04h71i5x2x"
+  const qrCodeValue = item.id;
 
   return (
     <View style={styles.qrCodeSection}>
@@ -487,10 +483,10 @@ const FeedbackForm: React.FC<{
   );
 };
 
-const RatingSection: React.FC<{ rating: number; setRating: (value: number) => void }> = ({
-  rating,
-  setRating,
-}) => (
+const RatingSection: React.FC<{
+  rating: number;
+  setRating: (value: number) => void;
+}> = ({ rating, setRating }) => (
   <View style={styles.ratingSection}>
     <Text style={styles.sectionLabel}>
       How would you rate your visit? <Text style={styles.required}>*</Text>
@@ -580,10 +576,10 @@ const PurchaseInterest: React.FC<{
   </View>
 );
 
-const SubmitButton: React.FC<{ submitting: boolean | undefined; onPress: () => void }> = ({
-  submitting,
-  onPress,
-}) => (
+const SubmitButton: React.FC<{
+  submitting: boolean | undefined;
+  onPress: () => void;
+}> = ({ submitting, onPress }) => (
   <TouchableOpacity
     onPress={onPress}
     disabled={submitting}

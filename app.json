@@ -19,7 +19,8 @@
           "android": {
             "compileSdkVersion": 33,
             "targetSdkVersion": 33,
-            "buildToolsVersion": "33.0.0"
+            "buildToolsVersion": "33.0.0",
+            "kotlinVersion": "1.8.0"
           }
         }
       ]
@@ -43,6 +44,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.realestatex.x90dph",
+      "versionCode": 1,
       "intentFilters": [
         {
           "action": "VIEW",
@@ -57,7 +59,9 @@
       ]
     },
     "extra": {
-      "router": {},
+      "router": {
+        "origin": false
+      },
       "eas": {
         "projectId": "71edecbc-766a-4baa-8bf0-36ec9bc3651d"
       }
