@@ -9,8 +9,7 @@
       "distribution": "internal",
       "android": {
         "gradleCommand": ":app:assembleDebug",
-        "buildType": "apk",
-        "gradleVersion": "8.13"
+        "buildType": "apk"
       },
       "ios": {
         "resourceClass": "m-medium"
@@ -23,8 +22,7 @@
     "preview": {
       "distribution": "internal",
       "android": {
-        "buildType": "apk",
-        "gradleVersion": "8.13"
+        "buildType": "apk"
       },
       "ios": {
         "resourceClass": "m-medium"
@@ -37,8 +35,7 @@
     "production": {
       "autoIncrement": true,
       "android": {
-        "buildType": "app-bundle",
-        "gradleVersion": "8.13"
+        "buildType": "app-bundle"
       },
       "ios": {
         "resourceClass": "m-medium"
