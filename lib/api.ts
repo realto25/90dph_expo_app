@@ -1,7 +1,7 @@
 import axios, { isAxiosError } from 'axios';
 
 // Base URL from environment variable
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.29.85:3000/api';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://90-dph.vercel.app/api';
 
 // Axios instance
 const api = axios.create({

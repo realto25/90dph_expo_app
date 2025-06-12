@@ -1,8 +1,7 @@
-import { getProjects, ProjectType } from "../lib/api"; // Import the API function and type
-import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -11,13 +10,13 @@ import {
   Text,
   TouchableOpacity,
   View,
-} from "react-native";
+} from 'react-native';
+import { getProjects, ProjectType } from '../lib/api'; // Import the API function and type
 
-const { width } = Dimensions.get("window");
+const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.9;
 
-const DEFAULT_IMAGE =
-  "https://placehold.co/600x400/e2e8f0/64748b?text=No+Image";
+const DEFAULT_IMAGE = 'https://placehold.co/600x400/e2e8f0/64748b?text=No+Image';
 
 const ProjectCard = () => {
   const router = useRouter();
@@ -32,8 +31,8 @@ const ProjectCard = () => {
       const projects = await getProjects(); // Fetch projects from API
       setFeaturedProjects(projects); // Update state with fetched data
     } catch (err) {
-      setError("Failed to load projects");
-      console.error("Error fetching projects:", err);
+      setError('Failed to load projects');
+      console.error('Error fetching projects:', err);
     } finally {
       setIsLoading(false);
     }
@@ -44,23 +43,23 @@ const ProjectCard = () => {
   }, [fetchProjects]);
 
   const formatPrice = (priceRange?: string) => {
-    if (!priceRange) return "Price on request";
+    if (!priceRange) return 'Price on request';
     try {
       // Handle different price range formats
-      if (priceRange.includes("-")) {
-        const minPrice = priceRange.split("-")[0].trim();
+      if (priceRange.includes('-')) {
+        const minPrice = priceRange.split('-')[0].trim();
         return minPrice;
       }
       return priceRange.trim();
     } catch (err) {
-      console.error("Error formatting price:", err);
-      return "Price on request";
+      console.error('Error formatting price:', err);
+      return 'Price on request';
     }
   };
 
   if (isLoading) {
     return (
-      <View className="flex-1 justify-center items-center py-8">
+      <View className="flex-1 items-center justify-center py-8">
         <ActivityIndicator size="large" color="#10B981" />
       </View>
     );
@@ -68,17 +67,16 @@ const ProjectCard = () => {
 
   if (error) {
     return (
-      <View className="flex-1 justify-center items-center py-8">
-        <Text className="text-gray-600 font-manrope-medium">{error}</Text>
+      <View className="flex-1 items-center justify-center py-8">
+        <Text className="font-manrope-medium text-gray-600">{error}</Text>
         <TouchableOpacity
-          className="mt-4 bg-green-500 px-4 py-2 rounded-full"
+          className="mt-4 rounded-full bg-green-500 px-4 py-2"
           onPress={() => {
             setIsLoading(true);
             setError(null);
             fetchProjects();
-          }}
-        >
-          <Text className="text-white font-manrope-bold">Try Again</Text>
+          }}>
+          <Text className="font-manrope-bold text-white">Try Again</Text>
         </TouchableOpacity>
       </View>
     );
@@ -86,10 +84,8 @@ const ProjectCard = () => {
 
   if (featuredProjects.length === 0) {
     return (
-      <View className="flex-1 justify-center items-center py-8">
-        <Text className="text-gray-600 font-manrope-medium">
-          No projects available
-        </Text>
+      <View className="flex-1 items-center justify-center py-8">
+        <Text className="font-manrope-medium text-gray-600">No projects available</Text>
       </View>
     );
   }
@@ -97,28 +93,30 @@ const ProjectCard = () => {
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
-      className="py-4 px-2"
-      contentContainerStyle={{ paddingBottom: 20 }}
-    >
+      className="px-2 py-4"
+      contentContainerStyle={{ paddingBottom: 20 }}>
       {featuredProjects.map((project: ProjectType) => (
         <TouchableOpacity
           key={project.id}
-          onPress={() => router.push(`/Explore` as any)}
-          className="mb-6 bg-white rounded-2xl overflow-hidden"
+          onPress={() =>
+            router.push({
+              pathname: '/(guest)/(tabs)/Explore' as const,
+            })
+          }
+          className="mb-6 overflow-hidden rounded-2xl bg-white"
           style={{
             width: CARD_WIDTH,
-            shadowColor: "#000",
+            shadowColor: '#000',
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.1,
             shadowRadius: 12,
             elevation: 5,
-          }}
-        >
+          }}>
           {/* Image Container with Gradient Overlay */}
           <View className="relative">
             <Image
               source={{ uri: project.imageUrl || DEFAULT_IMAGE }}
-              className="w-full h-72"
+              className="h-72 w-full"
               resizeMode="cover"
               onError={(e) => {
                 // If the image fails to load, it will use the DEFAULT_IMAGE
@@ -128,56 +126,51 @@ const ProjectCard = () => {
               }}
             />
             <LinearGradient
-              colors={["transparent", "rgba(0,0,0,0.7)"]}
+              colors={['transparent', 'rgba(0,0,0,0.7)']}
               className="absolute bottom-0 left-0 right-0 h-32"
             />
 
             {/* Price Tag */}
-            <View className="absolute left-4 bottom-4 bg-white/90 backdrop-blur-sm rounded-full px-4 py-2">
-              <Text className="text-green-600 text-base font-manrope-bold">
+            <View className="absolute bottom-4 left-4 rounded-full bg-white/90 px-4 py-2 backdrop-blur-sm">
+              <Text className="font-manrope-bold text-base text-green-600">
                 {formatPrice(project.priceRange)}
               </Text>
             </View>
 
             {/* Favorite Button */}
             <TouchableOpacity
-              className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm rounded-full p-2"
+              className="absolute right-4 top-4 rounded-full bg-white/90 p-2 backdrop-blur-sm"
               style={{
-                shadowColor: "#000",
+                shadowColor: '#000',
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.1,
                 shadowRadius: 4,
                 elevation: 3,
-              }}
-            >
+              }}>
               <Ionicons name="heart-outline" size={22} color="#4B5563" />
             </TouchableOpacity>
           </View>
 
           {/* Card Content */}
           <View className="p-4">
-            <View className="flex-row justify-between items-start mb-2">
+            <View className="mb-2 flex-row items-start justify-between">
               <Text
-                className="text-xl font-manrope-bold text-gray-900 flex-1 mr-2"
-                numberOfLines={1}
-              >
-                {project.name || "Unnamed Project"}
+                className="font-manrope-bold mr-2 flex-1 text-xl text-gray-900"
+                numberOfLines={1}>
+                {project.name || 'Unnamed Project'}
               </Text>
-              <View className="flex-row items-center bg-gray-100 px-2 py-1 rounded-full">
+              <View className="flex-row items-center rounded-full bg-gray-100 px-2 py-1">
                 <Ionicons name="star" size={14} color="#F59E0B" />
-                <Text className="ml-1 text-sm font-manrope-medium text-gray-700">
-                  {project.rating?.toFixed(1) || "N/A"}
+                <Text className="font-manrope-medium ml-1 text-sm text-gray-700">
+                  {project.rating?.toFixed(1) || 'N/A'}
                 </Text>
               </View>
             </View>
 
-            <View className="flex-row items-center mb-3">
+            <View className="mb-3 flex-row items-center">
               <Ionicons name="location-outline" size={16} color="#6B7280" />
-              <Text
-                className="ml-1 text-sm font-manrope text-gray-600"
-                numberOfLines={1}
-              >
-                {project.location || "Location not specified"}
+              <Text className="font-manrope ml-1 text-sm text-gray-600" numberOfLines={1}>
+                {project.location || 'Location not specified'}
               </Text>
             </View>
 
@@ -185,18 +178,13 @@ const ProjectCard = () => {
             {project.amenities && project.amenities.length > 0 && (
               <View className="flex-row flex-wrap gap-2">
                 {project.amenities.slice(0, 3).map((amenity, index) => (
-                  <View
-                    key={index}
-                    className="bg-gray-50 px-3 py-1 rounded-full"
-                  >
-                    <Text className="text-xs font-manrope-medium text-gray-600">
-                      {amenity}
-                    </Text>
+                  <View key={index} className="rounded-full bg-gray-50 px-3 py-1">
+                    <Text className="font-manrope-medium text-xs text-gray-600">{amenity}</Text>
                   </View>
                 ))}
                 {project.amenities.length > 3 && (
-                  <View className="bg-gray-50 px-3 py-1 rounded-full">
-                    <Text className="text-xs font-manrope-medium text-gray-600">
+                  <View className="rounded-full bg-gray-50 px-3 py-1">
+                    <Text className="font-manrope-medium text-xs text-gray-600">
                       +{project.amenities.length - 3} more
                     </Text>
                   </View>
@@ -207,18 +195,19 @@ const ProjectCard = () => {
             {/* Available Plots */}
             <View className="mt-3 flex-row items-center justify-between">
               <View className="flex-row items-center">
-                <View className="w-2 h-2 rounded-full bg-green-500 mr-2" />
-                <Text className="text-sm font-manrope-medium text-gray-700">
+                <View className="mr-2 h-2 w-2 rounded-full bg-green-500" />
+                <Text className="font-manrope-medium text-sm text-gray-700">
                   {project.plotsAvailable} Available
                 </Text>
               </View>
               <TouchableOpacity
-                className="bg-green-500 px-4 py-2 rounded-full"
-                onPress={() => router.push(`/Explore` as any)}
-              >
-                <Text className="text-white font-manrope-bold text-sm">
-                  View Details
-                </Text>
+                className="rounded-full bg-green-500 px-4 py-2"
+                onPress={() =>
+                  router.push({
+                    pathname: '/(guest)/(tabs)/Explore' as const,
+                  })
+                }>
+                <Text className="font-manrope-bold text-sm text-white">View Details</Text>
               </TouchableOpacity>
             </View>
           </View>

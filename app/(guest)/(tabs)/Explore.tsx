@@ -50,7 +50,7 @@ export default function ExploreScreen() {
 
   const navigateToPlot = (plotId: string) => {
     router.push({
-      pathname: '/(guest)/plot/[id]',
+      pathname: '/(guest)/plot/[id]' as const,
       params: { id: plotId },
     });
   };
