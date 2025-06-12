@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 5.9.1"
+    "version": ">= 5.9.1",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -9,23 +10,21 @@
       "android": {
         "gradleCommand": ":app:assembleDebug",
         "buildType": "apk",
-          "env": {
-          "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY":"pk_test_c3Rlcmxpbmctc3BpZGVyLTUwLmNsZXJrLmFjY291bnRzLmRldiQ"
+        "env": {
+          "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_c3Rlcmxpbmctc3BpZGVyLTUwLmNsZXJrLmFjY291bnRzLmRldiQ",
+          "EXPO_PUBLIC_API_URL": "https://main-admin-dashboard-orpin.vercel.app/api"
         }
       }
     },
     "preview": {
       "distribution": "internal",
-        "android": {
-        "gradleCommand": ":app:assembleDebug",
+      "android": {
         "buildType": "apk",
-          "env": {
-          "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY":"pk_test_c3Rlcmxpbmctc3BpZGVyLTUwLmNsZXJrLmFjY291bnRzLmRldiQ"
+        "env": {
+          "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_c3Rlcmxpbmctc3BpZGVyLTUwLmNsZXJrLmFjY291bnRzLmRldiQ",
+          "EXPO_PUBLIC_API_URL": "https://main-admin-dashboard-orpin.vercel.app/api"
         }
       }
-    },
-    "production": {
-      "autoIncrement": true
     }
   }
 }
