@@ -1,36 +1,10 @@
 {
   "expo": {
     "name": "90-dph",
-    "slug": "90-degree-pride-homes",
+    "slug": "90-dph",
     "version": "1.0.0",
-    "scheme": "90-dph",
-    "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/favicon.png"
-    },
-    "plugins": [
-      "expo-router",
-      "expo-secure-store",
-      "expo-web-browser",
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "compileSdkVersion": 33,
-            "targetSdkVersion": 33,
-            "buildToolsVersion": "33.0.0",
-            "kotlinVersion": "1.6.21"
-          }
-        }
-      ]
-    ],
-    "experiments": {
-      "typedRoutes": true,
-      "tsconfigPaths": true
-    },
     "orientation": "portrait",
-    "icon": "./assets/splash.png",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
@@ -38,34 +12,24 @@
       "backgroundColor": "#ffffff"
     },
     "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.90dph.app"
+    },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/splash.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.realestatex.x90dph",
-      "versionCode": 1,
-      "intentFilters": [
-        {
-          "action": "VIEW",
-          "autoVerify": true,
-          "data": [
-            {
-              "scheme": "90-dph"
-            }
-          ],
-          "category": ["BROWSABLE", "DEFAULT"]
-        }
-      ]
+      "package": "com.ninetydph.app"
     },
-    "extra": {
-      "router": {
-        "origin": false
-      },
-      "eas": {
-        "projectId": "71edecbc-766a-4baa-8bf0-36ec9bc3651d"
-      }
+    "web": {
+      "favicon": "./assets/favicon.png"
     },
-    "owner": "90dph"
+    "plugins": ["expo-router"],
+    "scheme": "90-dph",
+    "experiments": {
+      "typedRoutes": true
+    }
   }
 }

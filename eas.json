@@ -7,44 +7,40 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "android": {
-        "gradleCommand": ":app:assembleDebug",
-        "image": "ubuntu-22.04-jdk-17-ndk-r25b"
-      },
       "ios": {
         "resourceClass": "m-medium",
         "buildConfiguration": "Debug"
       },
       "env": {
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_YOUR_CLERK_KEY",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_c3Rlcmxpbmctc3BpZGVyLTUwLmNsZXJrLmFjY291bnRzLmRldiQ",
         "EXPO_PUBLIC_API_URL": "https://90-dph.vercel.app/api"
       }
     },
     "preview": {
       "distribution": "internal",
       "android": {
-        "buildType": "apk",
-        "image": "ubuntu-22.04-jdk-17-ndk-r25b"
+        "buildType": "apk"
+        
       },
       "ios": {
         "resourceClass": "m-medium"
       },
       "env": {
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_YOUR_CLERK_KEY",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_c3Rlcmxpbmctc3BpZGVyLTUwLmNsZXJrLmFjY291bnRzLmRldiQ",
         "EXPO_PUBLIC_API_URL": "https://90-dph.vercel.app/api"
       }
     },
     "production": {
       "autoIncrement": true,
       "android": {
-        "buildType": "app-bundle",
-        "image": "ubuntu-22.04-jdk-17-ndk-r25b"
+        "buildType": "apk"
+
       },
       "ios": {
         "resourceClass": "m-medium"
       },
       "env": {
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_YOUR_CLERK_KEY",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_c3Rlcmxpbmctc3BpZGVyLTUwLmNsZXJrLmFjY291bnRzLmRldiQ",
         "EXPO_PUBLIC_API_URL": "https://90-dph.vercel.app/api"
       }
     }
