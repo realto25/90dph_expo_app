@@ -148,7 +148,7 @@ export default function SignInScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F8F9FA",
+    backgroundColor: "#FFF0E6",
   },
   container: {
     flex: 1,
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   title: {
-    fontSize: 28,
+    fontSize: 18,
     fontWeight: "700",
     color: "#2D3748",
     marginBottom: 8,

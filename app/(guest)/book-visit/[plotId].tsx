@@ -160,35 +160,33 @@ export default function BookVisitScreen() {
           {/* Form Container */}
           <View style={{ paddingHorizontal: 24, paddingBottom: 32 }}>
             {/* Personal Information Section */}
-            <View
-              style={{
-                backgroundColor: '#FFFFFF',
-                borderRadius: 16,
-                padding: 24,
-                marginBottom: 24,
-                shadowColor: '#000',
-                shadowOpacity: 0.05,
-                shadowRadius: 4,
+            <View style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: 16,
+              padding: 24,
+              marginBottom: 24,
+              shadowColor: '#000',
+              shadowOpacity: 0.05,
+              shadowRadius: 4,
+            }}>
+              <Text style={{
+                fontSize: 18,
+                fontWeight: '600',
+                color: '#111827',
+                marginBottom: 16,
               }}>
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontWeight: '600',
-                  color: '#111827',
-                  marginBottom: 16,
-                }}>
                 Contact Information
               </Text>
 
+              {/* Name Input */}
               <View style={{ marginBottom: 16 }}>
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontWeight: '500',
-                    color: '#374151',
-                    marginBottom: 8,
-                  }}>
-                  Full Name *
+                <Text style={{
+                  fontSize: 14,
+                  fontWeight: '500',
+                  color: '#374151',
+                  marginBottom: 8,
+                }}>
+                  Full Name <Text style={{ color: '#EF4444' }}>*</Text>
                 </Text>
                 <TextInput
                   placeholder="Enter your full name"
@@ -210,15 +208,15 @@ export default function BookVisitScreen() {
                 />
               </View>
 
+              {/* Email Input */}
               <View style={{ marginBottom: 16 }}>
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontWeight: '500',
-                    color: '#374151',
-                    marginBottom: 8,
-                  }}>
-                  Email Address *
+                <Text style={{
+                  fontSize: 14,
+                  fontWeight: '500',
+                  color: '#374151',
+                  marginBottom: 8,
+                }}>
+                  Email Address <Text style={{ color: '#EF4444' }}>*</Text>
                 </Text>
                 <TextInput
                   placeholder="Enter your email"
@@ -241,15 +239,15 @@ export default function BookVisitScreen() {
                 />
               </View>
 
-              <View>
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontWeight: '500',
-                    color: '#374151',
-                    marginBottom: 8,
-                  }}>
-                  Phone Number *
+              {/* Phone Input */}
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{
+                  fontSize: 14,
+                  fontWeight: '500',
+                  color: '#374151',
+                  marginBottom: 8,
+                }}>
+                  Phone Number <Text style={{ color: '#EF4444' }}>*</Text>
                 </Text>
                 <TextInput
                   placeholder="Enter your phone number"
@@ -274,35 +272,33 @@ export default function BookVisitScreen() {
             </View>
 
             {/* Date & Time Section */}
-            <View
-              style={{
-                backgroundColor: '#FFFFFF',
-                borderRadius: 16,
-                padding: 24,
-                marginBottom: 24,
-                shadowColor: '#000',
-                shadowOpacity: 0.05,
-                shadowRadius: 4,
+            <View style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: 16,
+              padding: 24,
+              marginBottom: 24,
+              shadowColor: '#000',
+              shadowOpacity: 0.05,
+              shadowRadius: 4,
+            }}>
+              <Text style={{
+                fontSize: 18,
+                fontWeight: '600',
+                color: '#111827',
+                marginBottom: 16,
               }}>
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontWeight: '600',
-                  color: '#111827',
-                  marginBottom: 16,
-                }}>
                 Preferred Date & Time
               </Text>
 
+              {/* Date Picker */}
               <View style={{ marginBottom: 16 }}>
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontWeight: '500',
-                    color: '#374151',
-                    marginBottom: 8,
-                  }}>
-                  Date *
+                <Text style={{
+                  fontSize: 14,
+                  fontWeight: '500',
+                  color: '#374151',
+                  marginBottom: 8,
+                }}>
+                  Date <Text style={{ color: '#EF4444' }}>*</Text>
                 </Text>
                 <TouchableOpacity
                   onPress={() => !loading && setDatePickerVisibility(true)}
@@ -316,19 +312,21 @@ export default function BookVisitScreen() {
                     opacity: loading ? 0.6 : 1,
                   }}
                   disabled={loading}>
-                  <Text style={{ fontSize: 16, color: '#111827' }}>{formatDate(date)}</Text>
+                  <Text style={{ fontSize: 16, color: '#111827' }}>
+                    {formatDate(date)}
+                  </Text>
                 </TouchableOpacity>
               </View>
 
-              <View>
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontWeight: '500',
-                    color: '#374151',
-                    marginBottom: 8,
-                  }}>
-                  Time *
+              {/* Time Picker */}
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{
+                  fontSize: 14,
+                  fontWeight: '500',
+                  color: '#374151',
+                  marginBottom: 8,
+                }}>
+                  Time <Text style={{ color: '#EF4444' }}>*</Text>
                 </Text>
                 <TouchableOpacity
                   onPress={() => !loading && setTimePickerVisibility(true)}
@@ -342,7 +340,9 @@ export default function BookVisitScreen() {
                     opacity: loading ? 0.6 : 1,
                   }}
                   disabled={loading}>
-                  <Text style={{ fontSize: 16, color: '#111827' }}>{formatTime(time)}</Text>
+                  <Text style={{ fontSize: 16, color: '#111827' }}>
+                    {formatTime(time)}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -361,13 +361,12 @@ export default function BookVisitScreen() {
                 shadowRadius: 4,
                 opacity: loading ? 0.7 : 1,
               }}>
-              <Text
-                style={{
-                  color: '#FFFFFF',
-                  textAlign: 'center',
-                  fontSize: 16,
-                  fontWeight: '600',
-                }}>
+              <Text style={{
+                color: '#FFFFFF',
+                textAlign: 'center',
+                fontSize: 16,
+                fontWeight: '600',
+              }}>
                 {loading ? 'Submitting Request...' : 'Schedule Visit'}
               </Text>
             </TouchableOpacity>

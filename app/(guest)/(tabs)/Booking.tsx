@@ -390,6 +390,8 @@ const BookingItem: React.FC<{
       hour12: true,
     });
 
+    const statusColors = getStatusColor(item.status);
+
     return (
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -413,8 +415,10 @@ const BookingItem: React.FC<{
             <Text style={styles.bookingDate}>
               Date: {formattedDate} at {formattedTime}
             </Text>
-            <View style={[styles.statusBadge, getStatusColor(item.status)]}>
-              <Text style={styles.statusText}>Status: {item.status}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: statusColors.backgroundColor, borderColor: statusColors.borderColor }]}>
+              <Text style={[styles.statusText, { color: statusColors.textColor }]}>
+                Status: {item.status}
+              </Text>
             </View>
           </View>
           <Ionicons
@@ -788,7 +792,6 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: scaleFont(12),
     fontWeight: '600',
-    color: colors.text.inverse,
   },
   expandedSection: {
     marginTop: scale(8),
@@ -979,15 +982,33 @@ const styles = StyleSheet.create({
 // Utility function
 const getStatusColor = (status: string) => {
   const colorsMap = {
-    APPROVED: { backgroundColor: colors.success + '20', borderColor: colors.success },
-    PENDING: { backgroundColor: colors.warning + '20', borderColor: colors.warning },
-    REJECTED: { backgroundColor: colors.error + '20', borderColor: colors.error },
-    COMPLETED: { backgroundColor: colors.accent + '20', borderColor: colors.accent },
+    APPROVED: {
+      backgroundColor: '#DCFCE7', // Light green background
+      borderColor: '#22C55E', // Green border
+      textColor: '#166534', // Dark green text
+    },
+    PENDING: {
+      backgroundColor: '#FEF3C7', // Light yellow background
+      borderColor: '#F59E0B', // Yellow border
+      textColor: '#92400E', // Dark yellow text
+    },
+    REJECTED: {
+      backgroundColor: '#FEE2E2', // Light red background
+      borderColor: '#EF4444', // Red border
+      textColor: '#991B1B', // Dark red text
+    },
+    COMPLETED: {
+      backgroundColor: '#E0F2FE', // Light blue background
+      borderColor: '#3B82F6', // Blue border
+      textColor: '#1E40AF', // Dark blue text
+    },
   };
+
   return (
     colorsMap[status as keyof typeof colorsMap] || {
-      backgroundColor: colors.border.light,
-      borderColor: colors.border.medium,
+      backgroundColor: '#F3F4F6', // Light gray background
+      borderColor: '#D1D5DB', // Gray border
+      textColor: '#374151', // Dark gray text
     }
   );
 };

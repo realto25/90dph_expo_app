@@ -11,11 +11,284 @@ import {
   Text,
   TouchableOpacity,
   View,
+  StyleSheet,
 } from "react-native";
 import { WebView } from "react-native-webview";
 import { getPlotById, PlotType } from "../../../lib/api";
 
 const { width } = Dimensions.get("window");
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: 'white',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  imageContainer: {
+    position: 'relative',
+  },
+  image: {
+    width: width,
+    height: 320,
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    position: 'absolute',
+    bottom: 16,
+    left: 0,
+    right: 0,
+  },
+  paginationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginHorizontal: 4,
+  },
+  headerControls: {
+    position: 'absolute',
+    top: 48,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  headerButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    padding: 12,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  statusBadge: {
+    position: 'absolute',
+    top: 48,
+    right: 80,
+    backgroundColor: 'rgba(34, 197, 94, 0.9)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  statusText: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  contentCard: {
+    backgroundColor: 'white',
+    marginHorizontal: 16,
+    marginTop: -20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+    zIndex: 10,
+  },
+  contentPadding: {
+    padding: 24,
+  },
+  priceBadge: {
+    backgroundColor: '#F97316',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginBottom: 16,
+  },
+  priceText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 18,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 8,
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  locationText: {
+    color: '#4B5563',
+    marginLeft: 8,
+    fontSize: 16,
+  },
+  detailsContainer: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+  },
+  detailsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 16,
+  },
+  detailsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  detailItem: {
+    width: '48%',
+    marginBottom: 16,
+  },
+  detailLabel: {
+    color: '#6B7280',
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  detailValue: {
+    color: '#111827',
+    fontWeight: '600',
+  },
+  aboutTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  aboutText: {
+    color: '#4B5563',
+    lineHeight: 24,
+  },
+  amenitiesContainer: {
+    marginBottom: 24,
+  },
+  amenityTag: {
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FDBA74',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  amenityText: {
+    color: '#C2410C',
+    fontWeight: '500',
+  },
+  mapContainer: {
+    marginBottom: 24,
+  },
+  mapTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  mapView: {
+    height: 192,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  bottomButton: {
+    backgroundColor: 'white',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingBottom: 32,
+  },
+  bookButton: {
+    backgroundColor: '#F97316',
+    paddingVertical: 16,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  bookButtonText: {
+    color: 'white',
+    textAlign: 'center',
+    fontWeight: 'bold',
+    fontSize: 18,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+  },
+  loadingText: {
+    marginTop: 16,
+    color: '#4B5563',
+    fontSize: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    padding: 24,
+  },
+  errorCard: {
+    backgroundColor: 'white',
+    padding: 32,
+    borderRadius: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  errorText: {
+    color: '#374151',
+    marginTop: 16,
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '500',
+  },
+  retryButton: {
+    marginTop: 24,
+    backgroundColor: '#F97316',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  aboutContainer: {
+    marginBottom: 24,
+  },
+  mapPlaceholder: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mapPlaceholderText: {
+    color: '#6B7280',
+    marginTop: 8,
+    fontSize: 14,
+  },
+});
 
 export default function PlotDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -84,7 +357,7 @@ export default function PlotDetailScreen() {
     <View style={{ width }}>
       <Image
         source={{ uri: item }}
-        className="w-full h-80"
+        style={styles.image}
         resizeMode="cover"
       />
     </View>
@@ -94,13 +367,16 @@ export default function PlotDetailScreen() {
     if (!plot?.imageUrls || plot.imageUrls.length <= 1) return null;
 
     return (
-      <View className="flex-row justify-center absolute bottom-4 left-0 right-0">
+      <View style={styles.paginationContainer}>
         {plot.imageUrls.map((_, index) => (
           <View
             key={index}
-            className={`w-2 h-2 rounded-full mx-1 ${
-              index === currentImageIndex ? "bg-white" : "bg-white/50"
-            }`}
+            style={[
+              styles.paginationDot,
+              {
+                backgroundColor: index === currentImageIndex ? 'white' : 'white/50',
+              },
+            ]}
           />
         ))}
       </View>
@@ -114,9 +390,9 @@ export default function PlotDetailScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 justify-center items-center bg-gray-50">
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#FF6B35" />
-        <Text className="mt-4 text-gray-600 text-base">
+        <Text style={styles.loadingText}>
           Loading plot details...
         </Text>
       </View>
@@ -125,17 +401,17 @@ export default function PlotDetailScreen() {
 
   if (error || !plot) {
     return (
-      <View className="flex-1 justify-center items-center bg-gray-50 px-6">
-        <View className="bg-white p-8 rounded-2xl shadow-sm items-center">
+      <View style={styles.errorContainer}>
+        <View style={styles.errorCard}>
           <Ionicons name="alert-circle-outline" size={64} color="#FF6B35" />
-          <Text className="text-gray-700 mt-4 text-center text-lg font-medium">
+          <Text style={styles.errorText}>
             {error || "Plot not found"}
           </Text>
           <TouchableOpacity
             onPress={fetchPlotDetails}
-            className="mt-6 px-8 py-3 bg-orange-500 rounded-xl shadow-sm"
+            style={styles.retryButton}
           >
-            <Text className="text-white font-semibold text-base">
+            <Text style={styles.retryButtonText}>
               Try Again
             </Text>
           </TouchableOpacity>
@@ -145,10 +421,9 @@ export default function PlotDetailScreen() {
   }
 
   return (
-    <View className="flex-1 bg-white">
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* Image Carousel */}
-        <View className="relative">
+    <View style={styles.container}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <View style={styles.imageContainer}>
           <FlatList
             ref={flatListRef}
             data={plot.imageUrls || []}
@@ -161,124 +436,87 @@ export default function PlotDetailScreen() {
           />
           {renderPaginationDots()}
 
-          {/* Header Controls */}
-          <View className="absolute top-12 left-0 right-0 flex-row justify-between px-4">
+          <View style={styles.headerControls}>
             <TouchableOpacity
               onPress={() => router.back()}
-              className="bg-white/90 p-3 rounded-full shadow-sm"
+              style={styles.headerButton}
             >
               <Ionicons name="arrow-back" size={24} color="#1F2937" />
             </TouchableOpacity>
-            <TouchableOpacity className="bg-white/90 p-3 rounded-full shadow-sm">
+            <TouchableOpacity style={styles.headerButton}>
               <Ionicons name="heart-outline" size={24} color="#1F2937" />
             </TouchableOpacity>
           </View>
 
-          {/* Status Badge */}
           {plot.status.toLowerCase() === "available" && (
-            <View className="absolute top-12 right-20 bg-green-500/90 px-4 py-2 rounded-full">
-              <Text className="text-white font-semibold">Available</Text>
+            <View style={styles.statusBadge}>
+              <Text style={styles.statusText}>Available</Text>
             </View>
           )}
         </View>
 
-        {/* Content Card */}
-        <View className="bg-white mx-4 mt-[-20] rounded-t-3xl shadow-lg z-10">
-          <View className="p-6">
-            {/* Price Badge */}
-            <View className="bg-orange-500 self-start px-4 py-2 rounded-full mb-4">
-              <Text className="text-white font-bold text-lg">
-                ₹{(plot.price / 100000).toFixed(2)} Lac
-              </Text>
+        <View style={styles.contentCard}>
+          <View style={styles.contentPadding}>
+            <View style={styles.priceBadge}>
+              <Text style={styles.priceText}>₹{(plot.price / 100000).toFixed(2)} Lac</Text>
             </View>
 
-            {/* Title and Location */}
-            <Text className="text-2xl font-bold text-gray-900 mb-2">
-              {plot.title}
-            </Text>
+            <Text style={styles.title}>{plot.title}</Text>
 
-            <View className="flex-row items-center mb-6">
+            <View style={styles.locationContainer}>
               <Ionicons name="location" size={18} color="#FF6B35" />
-              <Text className="text-gray-600 ml-2 text-base">
-                {plot.location}
-              </Text>
+              <Text style={styles.locationText}>{plot.location}</Text>
             </View>
 
-            {/* Property Details Grid */}
-            <View className="bg-gray-50 rounded-2xl p-5 mb-6">
-              <Text className="text-lg font-semibold text-gray-900 mb-4">
-                Property Details
-              </Text>
+            <View style={styles.detailsContainer}>
+              <Text style={styles.detailsTitle}>Property Details</Text>
 
-              <View className="flex-row flex-wrap justify-between">
-                <View className="w-[48%] mb-4">
-                  <Text className="text-gray-500 text-sm mb-1">Plot Area</Text>
-                  <Text className="text-gray-900 font-semibold">
-                    {plot.dimension}
-                  </Text>
+              <View style={styles.detailsGrid}>
+                <View style={styles.detailItem}>
+                  <Text style={styles.detailLabel}>Plot Area</Text>
+                  <Text style={styles.detailValue}>{plot.dimension}</Text>
                 </View>
 
-                <View className="w-[48%] mb-4">
-                  <Text className="text-gray-500 text-sm mb-1">Facing</Text>
-                  <Text className="text-gray-900 font-semibold capitalize">
-                    {plot.facing}
-                  </Text>
+                <View style={styles.detailItem}>
+                  <Text style={styles.detailLabel}>Facing</Text>
+                  <Text style={styles.detailValue}>{plot.facing.charAt(0).toUpperCase() + plot.facing.slice(1)}</Text>
                 </View>
 
-                <View className="w-[48%] mb-4">
-                  <Text className="text-gray-500 text-sm mb-1">Price</Text>
-                  <Text className="text-gray-900 font-semibold">
-                    {plot.priceLabel}
-                  </Text>
+                <View style={styles.detailItem}>
+                  <Text style={styles.detailLabel}>Price</Text>
+                  <Text style={styles.detailValue}>{plot.priceLabel}</Text>
                 </View>
 
-                <View className="w-[48%] mb-4">
-                  <Text className="text-gray-500 text-sm mb-1">Type</Text>
-                  <Text className="text-gray-900 font-semibold">Farm Land</Text>
+                <View style={styles.detailItem}>
+                  <Text style={styles.detailLabel}>Type</Text>
+                  <Text style={styles.detailValue}>Farm Land</Text>
                 </View>
               </View>
             </View>
 
-            {/* About Property */}
-            <View className="mb-6">
-              <Text className="text-lg font-semibold text-gray-900 mb-3">
-                About Property
-              </Text>
-              <Text className="text-gray-600 leading-6">
-                This agriculture/farm plot is available for sale at{" "}
-                {plot.location}. It is a licensed plot in a very good area, the
-                plot is measuring {plot.dimension}
-                and priced {plot.priceLabel}.
+            <View style={styles.aboutContainer}>
+              <Text style={styles.aboutTitle}>About Property</Text>
+              <Text style={styles.aboutText}>
+                This agriculture/farm plot is available for sale at {plot.location}. It is a licensed plot in a very good area, the plot is measuring {plot.dimension} and priced {plot.priceLabel}.
               </Text>
             </View>
 
-            {/* Amenities */}
             {plot.amenities && plot.amenities.length > 0 && (
-              <View className="mb-6">
-                <Text className="text-lg font-semibold text-gray-900 mb-3">
-                  Amenities
-                </Text>
-                <View className="flex-row flex-wrap">
+              <View style={styles.amenitiesContainer}>
+                <Text style={styles.aboutTitle}>Amenities</Text>
+                <View style={styles.detailsGrid}>
                   {plot.amenities.map((amenity, index) => (
-                    <View
-                      key={index}
-                      className="bg-orange-50 border border-orange-200 px-4 py-2 rounded-full mr-2 mb-2"
-                    >
-                      <Text className="text-orange-600 font-medium">
-                        {amenity}
-                      </Text>
+                    <View key={index} style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>{amenity}</Text>
                     </View>
                   ))}
                 </View>
               </View>
             )}
 
-            {/* Map View */}
-            <View className="mb-6">
-              <Text className="text-lg font-semibold text-gray-900 mb-3">
-                Location
-              </Text>
-              <View className="h-48 rounded-2xl overflow-hidden border border-gray-200">
+            <View style={styles.mapContainer}>
+              <Text style={styles.mapTitle}>Location</Text>
+              <View style={styles.mapView}>
                 {plot.mapEmbedUrl ? (
                   <WebView
                     source={{
@@ -311,19 +549,18 @@ export default function PlotDetailScreen() {
                     domStorageEnabled={true}
                     startInLoadingState={true}
                     renderLoading={() => (
-                      <View className="absolute inset-0 bg-gray-100 justify-center items-center">
-                        <ActivityIndicator size="small" color="#FF6B35" />
+                      <View style={styles.mapPlaceholder}>
+                        <Ionicons name="location-outline" size={48} color="#9CA3AF" />
+                        <Text style={styles.mapPlaceholderText}>
+                          Map not available
+                        </Text>
                       </View>
                     )}
                   />
                 ) : (
-                  <View className="flex-1 bg-gray-100 justify-center items-center">
-                    <Ionicons
-                      name="location-outline"
-                      size={48}
-                      color="#9CA3AF"
-                    />
-                    <Text className="text-gray-500 mt-2">
+                  <View style={styles.mapPlaceholder}>
+                    <Ionicons name="location-outline" size={48} color="#9CA3AF" />
+                    <Text style={styles.mapPlaceholderText}>
                       Map not available
                     </Text>
                   </View>
@@ -334,16 +571,13 @@ export default function PlotDetailScreen() {
         </View>
       </ScrollView>
 
-      {/* Fixed Bottom Button */}
       {plot.status.toLowerCase() === "available" && (
-        <View className="bg-white border-t border-gray-200 px-4 py-4 pb-8">
+        <View style={styles.bottomButton}>
           <TouchableOpacity
-            className="bg-orange-500 py-4 rounded-2xl shadow-lg"
+            style={styles.bookButton}
             onPress={() => router.push(`/(guest)/book-visit/${plot.id}`)}
           >
-            <Text className="text-white text-center font-bold text-lg">
-              Book visit
-            </Text>
+            <Text style={styles.bookButtonText}>Book visit</Text>
           </TouchableOpacity>
         </View>
       )}
