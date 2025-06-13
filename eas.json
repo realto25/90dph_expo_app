@@ -1,7 +1,8 @@
 {
   "cli": {
     "version": ">= 5.9.1",
-    "appVersionSource": "remote"
+    "appVersionSource": "remote",
+    "requireCommit": false
   },
   "build": {
     "development": {
@@ -11,19 +12,67 @@
         "gradleCommand": ":app:assembleDebug",
         "buildType": "apk",
         "env": {
-          "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_c3Rlcmxpbmctc3BpZGVyLTUwLmNsZXJrLmFjY291bnRzLmRldiQ",
-          "EXPO_PUBLIC_API_URL": "https://main-admin-dashboard-orpin.vercel.app/api"
+          "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_c3Rlcmxpbmctc3BpZGVyLTUwLmNsZXJrLmFjY291bnRzLmRldiQ"
         }
-      }
+      },
+      "ios": {
+        "simulator": true,
+        "env": {
+          "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_c3Rlcmxpbmctc3BpZGVyLTUwLmNsZXJrLmFjY291bnRzLmRldiQ"
+        }
+      },
+      "cache": {
+        "key": "development-v1"
+      },
+      "autoIncrement": true
     },
     "preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk",
         "env": {
-          "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_c3Rlcmxpbmctc3BpZGVyLTUwLmNsZXJrLmFjY291bnRzLmRldiQ",
-          "EXPO_PUBLIC_API_URL": "https://main-admin-dashboard-orpin.vercel.app/api"
+          "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_c3Rlcmxpbmctc3BpZGVyLTUwLmNsZXJrLmFjY291bnRzLmRldiQ"
         }
+      },
+      "ios": {
+        "simulator": false,
+        "env": {
+          "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_c3Rlcmxpbmctc3BpZGVyLTUwLmNsZXJrLmFjY291bnRzLmRldiQ"
+        }
+      },
+      "cache": {
+        "key": "preview-v1"
+      },
+      "autoIncrement": true
+    },
+    "production": {
+      "android": {
+        "buildType": "app-bundle",
+        "env": {
+          "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_c3Rlcmxpbmctc3BpZGVyLTUwLmNsZXJrLmFjY291bnRzLmRldiQ"
+        }
+      },
+      "ios": {
+        "env": {
+          "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_c3Rlcmxpbmctc3BpZGVyLTUwLmNsZXJrLmFjY291bnRzLmRldiQ"
+        }
+      },
+      "cache": {
+        "key": "production-v1"
+      },
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./path-to-your-service-account.json",
+        "track": "production"
+      },
+      "ios": {
+        "appleId": "your-apple-id@example.com",
+        "ascAppId": "your-app-store-connect-app-id",
+        "appleTeamId": "your-apple-team-id"
       }
     }
   }
