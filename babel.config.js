@@ -6,7 +6,6 @@ module.exports = function (api) {
       'nativewind/babel',
     ],
     plugins: [
-      // REMOVED: 'expo-router/babel', // This line was removed
       'react-native-reanimated/plugin',
       [
         'module-resolver',
