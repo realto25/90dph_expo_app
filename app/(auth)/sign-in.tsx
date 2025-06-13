@@ -1,9 +1,8 @@
 import { useOAuth, useSignIn } from '@clerk/clerk-expo';
-import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
-import * as WebBrowser from 'expo-web-browser';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import * as WebBrowser from 'expo-web-browser';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -59,8 +58,7 @@ export default function SignInScreen() {
       <TouchableOpacity
         style={[styles.googleButton, loading && styles.disabledButton]}
         onPress={handleGoogleSignIn}
-        disabled={loading || !isLoaded}
-      >
+        disabled={loading || !isLoaded}>
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
