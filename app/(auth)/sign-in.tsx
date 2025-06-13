@@ -1,10 +1,9 @@
-// app/(auth)/sign-in.tsx
 import { useOAuth, useSignIn } from '@clerk/clerk-expo';
 import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
-import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import React, { useCallback, useEffect } from 'react';
+import { useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,16 +18,11 @@ WebBrowser.maybeCompleteAuthSession();
 
 export default function SignInScreen() {
   const router = useRouter();
-  const { signIn, setActive, isLoaded } = useSignIn();
+  const { signIn, isLoaded } = useSignIn();
   const { startOAuthFlow } = useOAuth({ strategy: 'oauth_google' });
-  const [loading, setLoading] = React.useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // Cleanup function to handle component unmount
-  useEffect(() => {
-    return () => {
-      setLoading(false);
-    };
-  }, []);
+  const redirectUrl = Linking.createURL('callback');
 
   const handleGoogleSignIn = useCallback(async () => {
     if (!isLoaded) return;
@@ -36,78 +30,49 @@ export default function SignInScreen() {
     try {
       setLoading(true);
 
-      const { createdSessionId, signIn, signUp, setActive } = await startOAuthFlow({
-        redirectUrl: Linking.createURL('/(guest)/(tabs)/Home', {
-          scheme: Constants.expoConfig?.scheme || 'x90dph',
-        }),
-      });
+      const { createdSessionId, setActive } = await startOAuthFlow({ redirectUrl });
 
       if (createdSessionId) {
-        await setActive!({ session: createdSessionId });
-        // Add a small delay to ensure auth state is properly updated
-        setTimeout(() => {
-          router.replace('/(guest)/(tabs)/Home');
-        }, 1000); // Increased delay for better state synchronization
-      } else if (signIn || signUp) {
-        Alert.alert('Success', 'Authentication successful!', [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Add a small delay to ensure auth state is properly updated
-              setTimeout(() => {
-                router.replace('/(guest)/(tabs)/Home');
-              }, 1000); // Increased delay for better state synchronization
-            },
-          },
-        ]);
+        await setActive?.({ session: createdSessionId });
+        router.replace('/(guest)/(tabs)/Home');
+      } else {
+        Alert.alert('Login failed', 'No session returned.');
       }
     } catch (err: any) {
-      console.error('OAuth error:', JSON.stringify(err, null, 2));
+      console.error('OAuth Error:', err);
 
-      // Handle specific error cases
-      if (err.errors) {
-        const errorMessage = err.errors[0]?.message || 'Authentication failed';
-        Alert.alert('Error', errorMessage);
-      } else if (err.message?.includes('timeout')) {
-        Alert.alert(
-          'Error',
-          'Request timed out. Please check your internet connection and try again.'
-        );
-      } else if (err.message?.includes('network')) {
-        Alert.alert('Network Error', 'Please check your internet connection and try again.');
+      if (err?.errors?.[0]?.message) {
+        Alert.alert('Error', err.errors[0].message);
       } else {
-        Alert.alert('Error', 'Something went wrong. Please try again.');
+        Alert.alert('Error', 'Something went wrong. Try again.');
       }
     } finally {
       setLoading(false);
     }
-  }, [isLoaded, startOAuthFlow, setActive, router]);
+  }, [isLoaded, startOAuthFlow, redirectUrl]);
 
   return (
     <View style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Welcome</Text>
-        <Text style={styles.subtitle}>Sign in to continue</Text>
+      <Text style={styles.title}>Welcome</Text>
+      <Text style={styles.subtitle}>Sign in to continue</Text>
 
-        <TouchableOpacity
-          style={[styles.googleButton, loading && styles.disabledButton]}
-          onPress={handleGoogleSignIn}
-          disabled={loading || !isLoaded}>
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Image
-                source={{
-                  uri: 'https://www.google.com/favicon.ico',
-                }}
-                style={styles.googleIcon}
-              />
-              <Text style={styles.googleButtonText}>Continue with Google</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity
+        style={[styles.googleButton, loading && styles.disabledButton]}
+        onPress={handleGoogleSignIn}
+        disabled={loading || !isLoaded}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <>
+            <Image
+              source={{ uri: 'https://www.google.com/favicon.ico' }}
+              style={styles.googleIcon}
+            />
+            <Text style={styles.googleButtonText}>Continue with Google</Text>
+          </>
+        )}
+      </TouchableOpacity>
     </View>
   );
 }
@@ -115,23 +80,20 @@ export default function SignInScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-  },
-  content: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    padding: 24,
+    backgroundColor: '#fff',
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   subtitle: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#666',
-    marginBottom: 40,
+    marginBottom: 32,
   },
   googleButton: {
     flexDirection: 'row',
@@ -140,11 +102,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
-    minWidth: 250,
-    justifyContent: 'center',
-  },
-  disabledButton: {
-    opacity: 0.7,
   },
   googleIcon: {
     width: 20,
@@ -157,5 +114,8 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });

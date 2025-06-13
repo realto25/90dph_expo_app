@@ -19,7 +19,14 @@
           "android": {
             "usesCleartextTraffic": true,
             "enableProguardInReleaseBuilds": true,
-            "enableShrinkResources": true
+            "enableShrinkResources": true,
+            "intentFilters": [
+              {
+                "action": "VIEW",
+                "data": { "scheme": "x90dph" },
+                "category": ["BROWSABLE", "DEFAULT"]
+              }
+            ]
           }
         }
       ]
