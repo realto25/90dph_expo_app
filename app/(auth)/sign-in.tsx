@@ -17,6 +17,7 @@ import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
 import LottieView from "lottie-react-native";
+import * as SecureStore from "expo-secure-store";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -24,7 +25,7 @@ const { width, height } = Dimensions.get("window");
 
 export default function SignInScreen() {
   const router = useRouter();
-  const { signIn, setActive, isLoaded } = useSignIn();
+  const { signIn, setActive, isLoaded, signOut } = useSignIn();
   const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
   const [loading, setLoading] = React.useState(false);
 
@@ -36,60 +37,59 @@ export default function SignInScreen() {
     }
   }, [isLoaded, isSignedIn, router]);
 
+  // Check for existing session on mount
+  useEffect(() => {
+    const checkExistingSession = async () => {
+      try {
+        const token = await SecureStore.getItemAsync("clerk-token");
+        if (token && isLoaded && !isSignedIn) {
+          console.log("[SignIn] Found existing token, attempting to restore session");
+          await setActive({ session: token });
+        }
+      } catch (err) {
+        console.error("[SignIn] Error checking existing session:", err);
+      }
+    };
+    checkExistingSession();
+  }, [isLoaded, isSignedIn]);
+
   const handleGoogleSignIn = useCallback(async () => {
-    if (!isLoaded) {
-      console.log('[SignIn] Clerk not loaded yet');
-      return;
-    }
+    if (!isLoaded) return;
 
     try {
       setLoading(true);
-      console.log('[SignIn] Starting OAuth flow...');
-
-      const redirectUrl = Linking.createURL("oauth-native-callback", {
-        scheme: "90-dph",
+      const redirectUrl = Linking.createURL("oauth-callback", {
+        scheme: "x90dph"
       });
-
-      console.log('[SignIn] Using redirect URL:', redirectUrl);
 
       const { createdSessionId, signIn, signUp, setActive } = await startOAuthFlow({
-        redirectUrl,
+        redirectUrl
       });
 
-      console.log('[SignIn] OAuth flow result:', { createdSessionId, signIn, signUp });
-
       if (createdSessionId) {
-        console.log('[SignIn] Setting active session...');
+        // Save the session token
+        await SecureStore.setItemAsync("clerk-token", createdSessionId);
         await setActive!({ session: createdSessionId });
-        console.log('[SignIn] Redirecting to home...');
         router.replace("/(guest)/(tabs)/Home");
-      } else {
-        if (signIn || signUp) {
-          console.log('[SignIn] Sign in/up successful, showing alert...');
-          Alert.alert(
-            "Welcome!",
-            "You have successfully signed in.",
-            [{ text: "Continue", onPress: () => {
-              console.log('[SignIn] Alert continue pressed, redirecting...');
-              router.replace("/(guest)/(tabs)/Home");
-            }}]
-          );
-        }
       }
-    } catch (err: any) {
-      console.error("[SignIn] OAuth error:", JSON.stringify(err, null, 2));
-
-      if (err.errors) {
-        const errorMessage =
-          err.errors[0]?.message || "Authentication failed. Please try again.";
-        Alert.alert("Sign-In Error", errorMessage);
-      } else {
-        Alert.alert("Oops!", "Something went wrong. Please try again.");
-      }
+    } catch (err) {
+      console.error("[SignIn] OAuth error:", err);
+      Alert.alert("Sign-In Error", "Authentication failed. Please try again.");
     } finally {
       setLoading(false);
     }
   }, [isLoaded, startOAuthFlow, setActive, router]);
+
+  // Handle sign out
+  const handleSignOut = async () => {
+    try {
+      await SecureStore.deleteItemAsync("clerk-token");
+      await signOut();
+      router.replace("/(auth)/sign-in");
+    } catch (err) {
+      console.error("[SignIn] Error signing out:", err);
+    }
+  };
 
   if (!isLoaded || isSignedIn) {
     return (

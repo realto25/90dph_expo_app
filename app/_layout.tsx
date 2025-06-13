@@ -18,18 +18,30 @@ if (!CLERK_PUBLISHABLE_KEY) {
 const tokenCache = {
   async getToken(key: string) {
     try {
-      return SecureStore.getItemAsync(key);
+      const token = await SecureStore.getItemAsync(key);
+      console.log("[TokenCache] Retrieved token:", token ? "exists" : "null");
+      return token;
     } catch (err) {
+      console.error("[TokenCache] Error getting token:", err);
       return null;
     }
   },
   async saveToken(key: string, value: string) {
     try {
-      return SecureStore.setItemAsync(key, value);
+      await SecureStore.setItemAsync(key, value);
+      console.log("[TokenCache] Token saved successfully");
     } catch (err) {
-      return;
+      console.error("[TokenCache] Error saving token:", err);
     }
   },
+  async deleteToken(key: string) {
+    try {
+      await SecureStore.deleteItemAsync(key);
+      console.log("[TokenCache] Token deleted successfully");
+    } catch (err) {
+      console.error("[TokenCache] Error deleting token:", err);
+    }
+  }
 };
 
 function InitialLayout() {

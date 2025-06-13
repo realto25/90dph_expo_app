@@ -52,7 +52,7 @@
               {
                 "action": "VIEW",
                 "data": {
-                  "scheme": "90-dph"
+                  "scheme": "x90dph"
                 },
                 "category": [
                   "BROWSABLE",
@@ -64,7 +64,7 @@
         }
       ]
     ],
-    "scheme": "90-dph",
+    "scheme": "x90dph",
     "experiments": {
       "typedRoutes": true,
       "tsconfigPaths": true
