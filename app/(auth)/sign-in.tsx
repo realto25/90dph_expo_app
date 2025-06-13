@@ -1,5 +1,5 @@
 // app/(auth)/sign-in.tsx
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -8,13 +8,19 @@ import {
   Image,
   ActivityIndicator,
   Alert,
+  SafeAreaView,
+  Platform,
+  Dimensions,
 } from "react-native";
-import { useSignIn, useOAuth } from "@clerk/clerk-expo";
+import { useSignIn, useOAuth, useAuth } from "@clerk/clerk-expo";
 import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
+import LottieView from "lottie-react-native";
 
 WebBrowser.maybeCompleteAuthSession();
+
+const { width, height } = Dimensions.get("window");
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -22,122 +28,199 @@ export default function SignInScreen() {
   const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
   const [loading, setLoading] = React.useState(false);
 
+  const { isSignedIn } = useAuth();
+
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      router.replace("/(guest)/(tabs)/Home");
+    }
+  }, [isLoaded, isSignedIn, router]);
+
   const handleGoogleSignIn = useCallback(async () => {
     if (!isLoaded) return;
 
     try {
       setLoading(true);
-      
-      const { createdSessionId, signIn, signUp, setActive } = 
+
+      const { createdSessionId, signIn, signUp, setActive } =
         await startOAuthFlow({
-          redirectUrl: Linking.createURL("/(guest)/(tabs)/Home", { scheme: "your-app-scheme" })
+          redirectUrl: Linking.createURL("/(guest)/(tabs)/Home", {
+            scheme: "your-app-scheme",
+          }),
         });
 
-      // If sign in was successful, set the session as active
       if (createdSessionId) {
         await setActive!({ session: createdSessionId });
         router.replace("/(guest)/(tabs)/Home");
       } else {
-        // Handle sign in or sign up as needed
         if (signIn || signUp) {
           Alert.alert(
-            "Success",
-            "Authentication successful!",
-            [{ text: "OK", onPress: () => router.replace("/(guest)/(tabs)/Home") }]
+            "Welcome!",
+            "You have successfully signed in.",
+            [{ text: "Continue", onPress: () => router.replace("/(guest)/(tabs)/Home") }]
           );
         }
       }
     } catch (err: any) {
       console.error("OAuth error:", JSON.stringify(err, null, 2));
-      
-      // Handle specific error cases
+
       if (err.errors) {
-        const errorMessage = err.errors[0]?.message || "Authentication failed";
-        Alert.alert("Error", errorMessage);
+        const errorMessage =
+          err.errors[0]?.message || "Authentication failed. Please try again.";
+        Alert.alert("Sign-In Error", errorMessage);
       } else {
-        Alert.alert("Error", "Something went wrong. Please try again.");
+        Alert.alert("Oops!", "Something went wrong. Please try again.");
       }
     } finally {
       setLoading(false);
     }
   }, [isLoaded, startOAuthFlow, setActive, router]);
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Welcome</Text>
-        <Text style={styles.subtitle}>Sign in to continue</Text>
-
-        <TouchableOpacity
-          style={[styles.googleButton, loading && styles.disabledButton]}
-          onPress={handleGoogleSignIn}
-          disabled={loading || !isLoaded}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <>
-              <Image
-                source={{
-                  uri: "https://www.google.com/favicon.ico",
-                }}
-                style={styles.googleIcon}
-              />
-              <Text style={styles.googleButtonText}>
-                Continue with Google
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
+  if (!isLoaded || isSignedIn) {
+    return (
+      <View style={styles.fullScreenLoading}>
+        <ActivityIndicator size="large" color="#4285F4" />
+        <Text style={styles.loadingText}>Getting things ready...</Text>
       </View>
-    </View>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <LottieView
+          source={require("@/assets/login-flow.json")}
+          autoPlay
+          loop
+          style={styles.lottieAnimation}
+        />
+
+        <View style={styles.contentCard}>
+          <Text style={styles.title}>Welcome to{"\n"}90 Degree Pride Homes</Text>
+          <Text style={styles.subtitle}>Find your dream property with us</Text>
+
+          <TouchableOpacity
+            style={[
+              styles.googleButton,
+              loading && styles.disabledButton,
+              !isLoaded && styles.disabledButton,
+            ]}
+            onPress={handleGoogleSignIn}
+            disabled={loading || !isLoaded}
+          >
+            {loading ? (
+              <ActivityIndicator color="#4285F4" size="small" />
+            ) : (
+              <View style={styles.googleButtonContent}>
+                <View style={styles.googleIconContainer}>
+                  <Image
+                    source={{
+                      uri: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1000px-Google_%22G%22_logo.svg.png",
+                    }}
+                    style={styles.googleIcon}
+                  />
+                </View>
+                <Text style={styles.googleButtonText}>Sign in with Google</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#F8F9FA",
+  },
   container: {
     flex: 1,
-    backgroundColor: "#fff",
-  },
-  content: {
-    flex: 1,
-    justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === "android" ? 40 : 0,
+    justifyContent: "center",
+  },
+  lottieAnimation: {
+    width: width * 0.9,
+    height: height * 0.3,
+    marginBottom: 16,
+  },
+  contentCard: {
+    width: "100%",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    paddingVertical: 32,
+    paddingHorizontal: 24,
+    shadowColor: "#E2E8F0",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
   },
   title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    marginBottom: 10,
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#2D3748",
+    marginBottom: 8,
+    textAlign: "center",
+    lineHeight: 34,
   },
   subtitle: {
-    fontSize: 18,
-    color: "#666",
-    marginBottom: 40,
+    fontSize: 16,
+    color: "#718096",
+    marginBottom: 32,
+    textAlign: "center",
   },
   googleButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#4285F4",
-    paddingHorizontal: 20,
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
     paddingVertical: 12,
     borderRadius: 8,
-    minWidth: 250,
+    width: "100%",
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  googleButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
     justifyContent: "center",
   },
-  disabledButton: {
-    opacity: 0.7,
+  googleIconContainer: {
+    backgroundColor: "#FFFFFF",
+    padding: 2,
+    borderRadius: 2,
+    marginRight: 12,
   },
   googleIcon: {
     width: 20,
     height: 20,
-    marginRight: 10,
-    backgroundColor: "#fff",
-    borderRadius: 2,
   },
   googleButtonText: {
-    color: "#fff",
+    color: "#5F6368",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "500",
+  },
+  disabledButton: {
+    opacity: 0.7,
+  },
+  fullScreenLoading: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F8F9FA",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#4A5568",
   },
 });

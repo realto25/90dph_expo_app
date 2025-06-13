@@ -1,10 +1,9 @@
-import InputField from "../../../components/InputField";
-import ProjectCard from "../../../components/ProjectCard";
-import { getProjects } from "../../../lib/api";
+import ProjectCard from "../../../components/ProjectCard"; // Ensure this path is correct
+import { getProjects } from "../../../lib/api"; // Ensure this path is correct
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { Redirect } from "expo-router";
-import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -15,29 +14,50 @@ import {
   Dimensions,
   StatusBar,
   Platform,
-  AccessibilityInfo,
   RefreshControl,
-  Modal,
+  StyleSheet,
+  Alert,
+  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as Location from 'expo-location';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 
-const { height } = Dimensions.get("window");
+const { height, width } = Dimensions.get("window");
 
+// Scaling utilities for responsive design
+const scaleFont = (size: number) => {
+  const guidelineBaseWidth = 375;
+  return Math.round((size * width) / guidelineBaseWidth);
+};
+
+const scale = (size: number) => {
+  const guidelineBaseWidth = 375;
+  return Math.round((size * width) / guidelineBaseWidth);
+};
+
+// Assuming this interface is defined elsewhere or imported from lib/api
+// It's crucial for type safety when working with project data.
 interface ProjectType {
   id: string;
   name?: string;
   description?: string;
   city?: string;
   state?: string;
+  latitude?: number;
+  longitude?: number;
+  imageUrl?: string;
+  priceRange?: string;
+  rating?: number;
+  location?: string;
+  amenities?: string[];
+  plotsAvailable?: number;
 }
 
-interface FilterState {
-  city: string[];
-  state: string[];
-}
-
+// User metadata for role-based redirection
 interface UserMetadata {
-  role?: "guest" | "client" | "manager";
+  role?: string;
 }
 
 export default function Page() {
@@ -47,573 +67,548 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ latitude: number, longitude: number } | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const scrollRef = useRef<ScrollView>(null);
+  const headerScrollY = useRef(new Animated.Value(0)).current;
 
-  const [filters, setFilters] = useState<FilterState>({
-    city: [],
-    state: [],
-  });
-
+  // Animations for initial load and shimmer effect
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(50))[0];
-  const filterSlideAnim = useState(new Animated.Value(height))[0];
+  const pulseAnim = useState(new Animated.Value(1))[0];
+  const shimmerAnim = useState(new Animated.Value(0))[0];
 
-  const filterOptions = {
-    city: [
-      { label: "Bengaluru", value: "bengaluru", count: 15 },
-      { label: "Chennai", value: "chennai", count: 12 },
-      { label: "Hyderabad", value: "hyderabad", count: 10 },
-      { label: "Coimbatore", value: "coimbatore", count: 8 },
-      { label: "Kochi", value: "kochi", count: 7 },
-      { label: "Mysuru", value: "mysuru", count: 6 },
-      { label: "Thiruvananthapuram", value: "thiruvananthapuram", count: 5 },
-      { label: "Mangaluru", value: "mangaluru", count: 4 },
-      { label: "Delhi", value: "delhi", count: 14 },
-      { label: "Mumbai", value: "mumbai", count: 13 },
-      { label: "Kolkata", value: "kolkata", count: 9 },
-      { label: "Pune", value: "pune", count: 11 },
-    ],
-    state: [
-      { label: "Karnataka", value: "karnataka", count: 20 },
-      { label: "Tamil Nadu", value: "tamil_nadu", count: 18 },
-      { label: "Telangana", value: "telangana", count: 15 },
-      { label: "Andhra Pradesh", value: "andhra_pradesh", count: 12 },
-      { label: "Kerala", value: "kerala", count: 10 },
-      { label: "Maharashtra", value: "maharashtra", count: 22 },
-      { label: "Delhi", value: "delhi", count: 14 },
-      { label: "West Bengal", value: "west_bengal", count: 9 },
-    ],
+  // Consistent color palette for the UI
+  const colors = {
+    primary: '#0F172A',
+    secondary: '#1E293B',
+    accent: '#6366F1',
+    accentLight: '#8B5CF6',
+    success: '#10B981',
+    warning: '#F59E0B',
+    error: '#EF4444',
+    surface: '#FFFFFF',
+    surfaceElevated: '#F8FAFC',
+    surfaceHover: '#F1F5F9',
+    text: {
+      primary: '#0F172A',
+      secondary: '#475569',
+      tertiary: '#94A3B8',
+      inverse: '#FFFFFF',
+    },
+    border: {
+      light: '#E2E8F0',
+      medium: '#CBD5E1',
+      dark: '#94A3B8'
+    }
   };
 
+  // Fetches projects from the API
   const fetchProjects = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setError(null);
-      setLoading(true);
-      const data = await getProjects();
-      if (!Array.isArray(data)) throw new Error("Invalid project data");
-      setProjects(data.filter(project => project?.id));
-      if (Platform.OS !== "web" && AccessibilityInfo.announceForAccessibility) {
-        AccessibilityInfo.announceForAccessibility("Projects loaded successfully");
+      const projectData = await getProjects();
+      setProjects(projectData);
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          tension: 80,
-          friction: 12,
-          useNativeDriver: true,
-        }),
-      ]).start();
     } catch (err) {
-      console.error("Error fetching projects:", err);
-      setError("Failed to load projects. Please check your connection and try again.");
-      if (Platform.OS !== "web" && AccessibilityInfo.announceForAccessibility) {
-        AccessibilityInfo.announceForAccessibility("Error loading projects");
-      }
+      setError('Failed to load projects. Please try again.');
+      console.error("Fetch projects error:", err);
     } finally {
       setLoading(false);
     }
   }, []);
 
+  // Handles the pull-to-refresh gesture
   const onRefresh = useCallback(async () => {
-    if (refreshing) return;
     setRefreshing(true);
-    try {
-      await fetchProjects();
-      if (Platform.OS !== "web" && AccessibilityInfo.announceForAccessibility) {
-        AccessibilityInfo.announceForAccessibility("Projects refreshed successfully");
-      }
-    } catch (err) {
-      setError("Failed to refresh projects. Please try again.");
-      if (Platform.OS !== "web" && AccessibilityInfo.announceForAccessibility) {
-        AccessibilityInfo.announceForAccessibility("Error refreshing projects");
-      }
-    } finally {
-      setRefreshing(false);
-    }
-  }, [fetchProjects, refreshing]);
-
-  const filteredProjects = useMemo(() => {
-    let filtered = projects;
-
-    if (searchQuery.trim()) {
-      filtered = filtered.filter(project =>
-        [
-          project.name?.toLowerCase(),
-          project.description?.toLowerCase(),
-          project.city?.toLowerCase(),
-          project.state?.toLowerCase(),
-        ].some(field => field?.includes(searchQuery.toLowerCase()))
-      );
-    }
-
-    if (filters.city.length > 0) {
-      filtered = filtered.filter(project => 
-        project.city && filters.city.includes(project.city.toLowerCase())
-      );
-    }
-
-    if (filters.state.length > 0) {
-      filtered = filtered.filter(project => 
-        project.state && filters.state.includes(project.state.toLowerCase())
-      );
-    }
-
-    return filtered;
-  }, [projects, searchQuery, filters]);
-
-  const getActiveFilterCount = useCallback(() => {
-    return filters.city.length + filters.state.length;
-  }, [filters]);
-
-  const clearAllFilters = useCallback(() => {
-    setFilters({ city: [], state: [] });
-    if (Platform.OS !== "web" && AccessibilityInfo.announceForAccessibility) {
-      AccessibilityInfo.announceForAccessibility("All filters cleared");
-    }
-  }, []);
-
-  const toggleFilter = useCallback((type: keyof FilterState, value: string) => {
-    setFilters(prev => ({
-      ...prev,
-      [type]: prev[type].includes(value) 
-        ? prev[type].filter(item => item !== value)
-        : [...prev[type], value],
-    }));
-  }, []);
-
-  const animateFilterModal = useCallback((show: boolean) => {
-    Animated.timing(filterSlideAnim, {
-      toValue: show ? 0 : height,
-      duration: 350,
-      useNativeDriver: true,
-    }).start();
-  }, []);
-
-  const SkeletonLoader = () => (
-    <View className="flex-1">
-      {[...Array(3)].map((_, index) => (
-        <View
-          key={index}
-          className="mb-4 p-4 bg-gray-100 rounded-2xl overflow-hidden"
-        >
-          <View className="h-6 bg-gray-200 rounded w-3/4 mb-2 relative overflow-hidden">
-            <View className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
-          </View>
-          <View className="h-4 bg-gray-200 rounded w-1/2 relative overflow-hidden">
-            <View className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
-          </View>
-        </View>
-      ))}
-    </View>
-  );
-
-  useEffect(() => {
-    fetchProjects();
+    await fetchProjects();
+    setRefreshing(false);
   }, [fetchProjects]);
 
-  useEffect(() => {
-    animateFilterModal(showFilters);
-  }, [showFilters, animateFilterModal]);
+  // Requests and gets the user's current location
+  const getLocation = useCallback(async () => {
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocationError('Permission to access location was denied');
+        return;
+      }
 
+      let location = await Location.getCurrentPositionAsync({});
+      setUserLocation({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude
+      });
+      setLocationError(null);
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (err) {
+      setLocationError('Unable to get current location');
+      console.error("Location error:", err);
+    }
+  }, []);
+
+  // Lifecycle hook to fetch location and projects on component mount
+  useEffect(() => {
+    getLocation();
+    fetchProjects();
+  }, [getLocation, fetchProjects]);
+
+  // Animation for initial project card display
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnim, slideAnim]);
+
+  // Animation for skeleton loader shimmer effect
+  useEffect(() => {
+    const startShimmer = () => {
+      shimmerAnim.setValue(0);
+      Animated.loop(
+        Animated.timing(shimmerAnim, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+        })
+      ).start();
+    };
+
+    if (loading) {
+      startShimmer();
+    } else {
+      shimmerAnim.stopAnimation();
+    }
+  }, [loading, shimmerAnim]);
+
+  // Skeleton loader component for better perceived performance during loading
+  const SkeletonLoader = () => {
+    const translateX = shimmerAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [-width, width],
+    });
+
+    const ShimmerOverlay = () => (
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFillObject,
+          {
+            transform: [{ translateX }],
+            backgroundColor: 'rgba(255,255,255,0.3)',
+          }
+        ]}
+      />
+    );
+
+    return (
+      <View style={{ flex: 1, marginTop: scale(10) }}>
+        {[...Array(3)].map((_, index) => (
+          <Animated.View
+            key={`skeleton-${index}`}
+            style={[
+              {
+                marginBottom: scale(15),
+                backgroundColor: colors.surface,
+                borderRadius: scale(12),
+                overflow: 'hidden',
+                shadowColor: colors.primary,
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 8,
+                elevation: 4,
+                width: width * 0.9 - 20, // Match ProjectCard width
+              },
+            ]}
+          >
+            <View style={{
+              height: scale(150),
+              backgroundColor: colors.surfaceElevated,
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <ShimmerOverlay />
+            </View>
+            <View style={{ padding: scale(12) }}>
+              <View style={{
+                height: scale(18),
+                backgroundColor: colors.surfaceElevated,
+                borderRadius: scale(6),
+                marginBottom: scale(8),
+                width: '75%',
+                position: 'relative',
+                overflow: 'hidden'
+              }}>
+                <ShimmerOverlay />
+              </View>
+              <View style={{
+                height: scale(12),
+                backgroundColor: colors.surfaceElevated,
+                borderRadius: scale(4),
+                width: '50%',
+                position: 'relative',
+                overflow: 'hidden'
+              }}>
+                <ShimmerOverlay />
+              </View>
+            </View>
+          </Animated.View>
+        ))}
+      </View>
+    );
+  };
+
+  // Handles initial authentication and user loading states
   if (!isAuthLoaded || !isUserLoaded) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-gray-50">
-        <ActivityIndicator size="large" color="#1e3a8a" />
-        <Text className="mt-4 text-gray-600 text-lg font-system">
-          Initializing...
-        </Text>
+      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+        <LinearGradient
+          colors={[colors.accent, colors.accentLight]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+        >
+          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+            <ActivityIndicator size="large" color={colors.text.inverse} />
+          </Animated.View>
+          <Text style={{
+            marginTop: scale(15),
+            color: colors.text.inverse,
+            fontSize: scaleFont(14),
+            fontWeight: '500',
+            textAlign: 'center'
+          }}>
+            Loading your experience...
+          </Text>
+        </LinearGradient>
       </SafeAreaView>
     );
   }
 
-  // if (isSignedIn) {
-  //   const userRole = (user?.publicMetadata as UserMetadata)?.role;
-  //   if (userRole === "client") return <Redirect href="/(client)/(tabs)/Home" />;
-  //   if (userRole === "manager") return <Redirect href="/(manager)" />;
-  // }
+  // Redirects authenticated users based on their role
+  if (isSignedIn) {
+    const userRole = (user?.publicMetadata as UserMetadata)?.role;
+    if (userRole === "client") return <Redirect href="/(client)/(tabs)/Home" />;
+    if (userRole === "manager") return <Redirect href="/(manager)" />;
+  } else {
+    return <Redirect href="/(auth)/sign-in" />;
+  }
 
-  const FilterCheckbox = ({ label, value, isSelected, onPress, count }: {
-    label: string;
-    value: string;
-    isSelected: boolean;
-    onPress: () => void;
-    count?: number;
-  }) => (
-    <TouchableOpacity
-      accessible
-      accessibilityLabel={`${label} filter${isSelected ? ", selected" : ""}`}
-      accessibilityRole="checkbox"
-      onPress={onPress}
-      className="flex-row items-center justify-between py-3 px-5"
-    >
-      <View className="flex-row items-center flex-1">
-        <View className={`w-6 h-6 rounded-lg border-2 mr-3 items-center justify-center ${
-          isSelected ? "bg-blue-600 border-blue-600" : "border-gray-300"
-        }`}>
-          {isSelected && <Ionicons name="checkmark" size={16} color="white" />}
-        </View>
-        <Text className="text-base font-system text-gray-900">
-          {label}
-        </Text>
-      </View>
-      {count != null && (
-        <Text className="text-sm font-system text-gray-500">
-          ({count})
-        </Text>
-      )}
-    </TouchableOpacity>
+  // Header animation for scroll effect
+  const headerOpacity = headerScrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [1, 0.95],
+    extrapolate: 'clamp',
+  });
+
+  const headerTranslateY = headerScrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [0, -10],
+    extrapolate: 'clamp',
+  });
+
+  // Filters projects based on search query, case-insensitive
+  const filteredProjects = projects.filter(project =>
+    (project.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    project.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    project.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    project.state?.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={["top", "left", "right"]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
-
-      <View className="bg-white/80 shadow-sm backdrop-blur-lg">
-        <View className="px-5 pt-4">
-          <View className="flex-row justify-between items-center">
-            <View>
-              <Text className="text-3xl font-system-bold text-gray-900 tracking-tight">
-                Welcome{user?.firstName ? `, ${user.firstName}` : ""}!
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.surfaceElevated }} edges={['top', 'bottom']}>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.surfaceElevated} translucent />
+      <Animated.View
+        style={{
+          opacity: headerOpacity,
+          transform: [{ translateY: headerTranslateY }],
+        }}
+      >
+        <LinearGradient
+          colors={[colors.surface, colors.surfaceElevated]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={{
+            paddingHorizontal: scale(15),
+            paddingBottom: scale(15),
+            shadowColor: colors.primary,
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 8,
+            elevation: 4,
+          }}
+        >
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            marginBottom: scale(16),
+          }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{
+                fontSize: scaleFont(24),
+                fontWeight: '700',
+                color: colors.text.primary,
+                letterSpacing: -0.3,
+                lineHeight: scale(28),
+              }}>
+                Welcome back{user?.firstName ? `, ${user.firstName}` : ""}
               </Text>
-              <Text className="text-sm font-system text-gray-500 mt-1">
+              <Text style={{
+                fontSize: scaleFont(12),
+                fontWeight: '500',
+                color: colors.text.secondary,
+                marginTop: scale(4),
+                letterSpacing: 0.1,
+              }}>
                 {new Date().toLocaleDateString("en-IN", {
                   weekday: "long",
-                  year: "numeric",
                   month: "long",
                   day: "numeric",
                 })}
               </Text>
             </View>
-            <TouchableOpacity
-              accessible
-              accessibilityLabel="Notifications"
-              onPress={() => {
-                // TODO: Implement notifications
-              }}
-              className="p-2 rounded-full bg-gray-100"
-            >
-              <Ionicons name="notifications-outline" size={20} color="#666" />
-            </TouchableOpacity>
-          </View>
+            <View style={{ alignItems: 'flex-end' }}>
+              {userLocation ? (
+                <TouchableOpacity
+                  onPress={getLocation}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: colors.success + '15',
+                    paddingHorizontal: scale(10),
+                    paddingVertical: scale(6),
+                    borderRadius: scale(16),
+                    marginBottom: scale(8),
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="location" size={scale(14)} color={colors.success} />
+                  <Text style={{
+                    fontSize: scaleFont(12),
+                    fontWeight: '600',
+                    marginLeft: scale(4),
+                    color: colors.success,
+                  }}>
+                    Location Active
+                  </Text>
+                </TouchableOpacity>
+              ) : locationError ? (
+                <TouchableOpacity
+                  onPress={getLocation}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: colors.error + '15',
+                    paddingHorizontal: scale(10),
+                    paddingVertical: scale(6),
+                    borderRadius: scale(16),
+                    marginBottom: scale(8),
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="location-off" size={scale(14)} color={colors.error} />
+                  <Text style={{
+                    fontSize: scaleFont(12),
+                    fontWeight: '600',
+                    marginLeft: scale(4),
+                    color: colors.error,
+                  }}>
+                    Enable Location
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
 
-          <View className="mt-3">
-            <InputField
-              label=""
-              placeholder="Search projects, cities, states..."
-              icon="search"
+              <TouchableOpacity
+                accessible
+                accessibilityLabel="Notifications"
+                onPress={() => {
+                  if (Platform.OS !== 'web') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  }
+                  Alert.alert("Notifications", "Notification feature coming soon!");
+                }}
+                style={{
+                  width: scale(36),
+                  height: scale(36),
+                  borderRadius: scale(18),
+                  backgroundColor: colors.accent + '10',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  shadowColor: colors.accent,
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 4,
+                  elevation: 2,
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="notifications" size={scale(18)} color={colors.accent} />
+              </TouchableOpacity>
+            </View>
+          </View>
+          {/* Search Bar */}
+          <View style={styles.searchBarContainer}>
+            <Ionicons name="search" size={scale(20)} color={colors.text.tertiary} style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search projects..."
+              placeholderTextColor={colors.text.tertiary}
               value={searchQuery}
               onChangeText={setSearchQuery}
-              accessibilityLabel="Search projects"
-              className="bg-gray-100 rounded-2xl text-base font-system text-gray-900 shadow-sm"
+              returnKeyType="search"
+              clearButtonMode="while-editing" // iOS only
             />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchButton}>
+                <Ionicons name="close-circle" size={scale(20)} color={colors.text.tertiary} />
+              </TouchableOpacity>
+            )}
           </View>
-
-          <View className="flex-row items-center justify-between mt-3 pb-3">
-            <TouchableOpacity
-              accessible
-              accessibilityLabel={`Filters, ${getActiveFilterCount()} active`}
-              onPress={() => {
-                setShowFilters(true);
-              }}
-              className="flex-row items-center bg-gray-100 px-4 py-2 rounded-full"
-            >
-              <Ionicons name="filter" size={18} color="#666" />
-              <Text className="text-base font-system-medium ml-2 text-gray-600">
-                Filters
-                {getActiveFilterCount() > 0 && ` (${getActiveFilterCount()})`}
-              </Text>
-            </TouchableOpacity>
-            <View />
-          </View>
-
-          {getActiveFilterCount() > 0 && (
-            <View className="pb-3">
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                className="px-5"
-              >
-                <View className="flex-row items-center">
-                  {filters.city.map((city) => (
-                    <View
-                      key={city}
-                      className="bg-blue-100 px-3 py-1 rounded-full mr-2 flex-row items-center"
-                    >
-                      <Text className="text-sm font-system-medium text-blue-600">
-                        {filterOptions.city.find(c => c.value === city)?.label}
-                      </Text>
-                      <TouchableOpacity
-                        accessible
-                        accessibilityLabel={`Remove ${city} filter`}
-                        onPress={() => {
-                          toggleFilter("city", city);
-                        }}
-                        className="ml-2"
-                      >
-                        <Ionicons name="close" size={14} color="#2563eb" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                  {filters.state.map((state) => (
-                    <View
-                      key={state}
-                      className="bg-purple-100 px-3 py-1 rounded-full mr-2 flex-row items-center"
-                    >
-                      <Text className="text-sm font-system-medium text-purple-600">
-                        {filterOptions.state.find(s => s.value === state)?.label}
-                      </Text>
-                      <TouchableOpacity
-                        accessible
-                        accessibilityLabel={`Remove ${state} filter`}
-                        onPress={() => {
-                          toggleFilter("state", state);
-                        }}
-                        className="ml-2"
-                      >
-                        <Ionicons name="close" size={14} color="#7c3aed" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                  <TouchableOpacity
-                    accessible
-                    accessibilityLabel="Clear all filters"
-                    onPress={() => {
-                      clearAllFilters();
-                    }}
-                    className="bg-red-100 px-3 py-1 rounded-full ml-2"
-                  >
-                    <Text className="text-sm font-system-medium text-red-600">
-                      Clear All
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </ScrollView>
-            </View>
-          )}
-        </View>
-      </View>
+        </LinearGradient>
+      </Animated.View>
 
       <ScrollView
         ref={scrollRef}
-        className="flex-1 px-5"
-        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: headerScrollY } } }],
+          { useNativeDriver: false }
+        )}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#1e3a8a"]}
-            tintColor="#1e3a8a"
-            accessibilityLabel="Refresh projects"
+            tintColor={colors.accent}
           />
         }
+        contentContainerStyle={{
+          paddingHorizontal: scale(15),
+          paddingBottom: scale(30),
+          paddingTop: scale(8),
+          // THIS IS THE KEY TO CENTERING THE CARDS!
+          alignItems: 'center',
+        }}
       >
         {loading ? (
           <SkeletonLoader />
         ) : error ? (
-          <View className="flex-1 justify-center items-center py-16">
-            <Ionicons name="alert-circle" size={48} color="#dc2626" />
-            <Text className="text-lg font-system-bold mt-2 text-red-500">
-              Oops!
-            </Text>
-            <Text className="text-center mt-2 px-8 text-base font-system text-gray-600">
-              {error}
-            </Text>
-            <TouchableOpacity
-              accessible
-              accessibilityLabel="Retry loading projects"
-              onPress={() => {
-                fetchProjects();
-              }}
-              className="mt-4 px-8 py-3 rounded-xl bg-blue-500 shadow-lg"
-            >
-              <Text className="text-white font-system-medium text-base">
-                Retry
-              </Text>
+          <View style={styles.emptyStateContainer}>
+            <Ionicons name="alert-circle-outline" size={scale(40)} color={colors.error} />
+            <Text style={[styles.emptyStateText, { fontSize: scaleFont(14) }]}>{error}</Text>
+            <TouchableOpacity style={[styles.exploreButton, { paddingHorizontal: scale(20), paddingVertical: scale(10), borderRadius: scale(8) }]} onPress={fetchProjects}>
+              <Text style={[styles.exploreButtonText, { fontSize: scaleFont(14) }]}>Try Again</Text>
+            </TouchableOpacity>
+          </View>
+        ) : filteredProjects.length === 0 && searchQuery !== '' ? (
+          <View style={styles.emptyStateContainer}>
+            <Ionicons name="search-outline" size={scale(40)} color={colors.text.tertiary} />
+            <Text style={[styles.emptyStateText, { fontSize: scaleFont(14) }]}>No results found for "{searchQuery}".</Text>
+            <TouchableOpacity style={[styles.exploreButton, { paddingHorizontal: scale(20), paddingVertical: scale(10), borderRadius: scale(8) }]} onPress={() => setSearchQuery('')}>
+              <Text style={[styles.exploreButtonText, { fontSize: scaleFont(14) }]}>Clear Search</Text>
             </TouchableOpacity>
           </View>
         ) : filteredProjects.length === 0 ? (
-          <View className="flex-1 justify-center items-center py-16">
-            <Ionicons name="folder-open" size={48} color="#9ca3af" />
-            <Text className="text-xl font-system-bold mt-4 text-gray-700">
-              {getActiveFilterCount() > 0 || searchQuery
-                ? "No Matches Found"
-                : "No Projects Yet"}
-            </Text>
-            <Text className="text-base font-system text-center mt-2 px-8 text-gray-500">
-              {getActiveFilterCount() > 0 || searchQuery
-                ? "Try adjusting your filters or search terms."
-                : "Projects will appear here once they're created."}
-            </Text>
-            {(getActiveFilterCount() > 0 || searchQuery) && (
-              <TouchableOpacity
-                accessible
-                accessibilityLabel="Clear all filters and search"
-                onPress={() => {
-                  setSearchQuery("");
-                  clearAllFilters();
-                }}
-                className="mt-4 px-6 py-2 rounded-xl bg-blue-500"
-              >
-                <Text className="text-white font-system-medium text-base">
-                  Clear All
-                </Text>
-              </TouchableOpacity>
-            )}
+          <View style={styles.emptyStateContainer}>
+            <Ionicons name="sad-outline" size={scale(40)} color={colors.text.tertiary} />
+            <Text style={[styles.emptyStateText, { fontSize: scaleFont(14) }]}>No projects found.</Text>
           </View>
         ) : (
-          <Animated.View
-            style={{
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            }}
-          >
-            <View className="flex-row justify-between items-center py-4">
-              <Text className="text-lg font-system-bold text-gray-800">
-                {filteredProjects.length} Projects Found
-              </Text>
-            </View>
+          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
             {filteredProjects.map((project, index) => (
-              <Animated.View
+              <ProjectCard
                 key={project.id}
-                style={{
-                  opacity: fadeAnim,
-                  transform: [
-                    {
-                      translateY: slideAnim.interpolate({
-                        inputRange: [0, 50],
-                        outputRange: [0, 20 * index],
-                      }),
-                    },
-                  ],
-                }}
-                className="mb-4"
-              >
-                <ProjectCard
-                  project={project}
-                  viewMode="list"
-                  isDarkMode={false}
-                />
-              </Animated.View>
+                project={project}
+                onPress={() => Alert.alert("Project Detail", `Navigating to ${project.name}`)}
+                style={{ marginBottom: index === filteredProjects.length - 1 ? 0 : scale(15) }}
+              />
             ))}
           </Animated.View>
         )}
       </ScrollView>
-
-      <Modal
-        visible={showFilters}
-        transparent
-        animationType="none"
-        onRequestClose={() => setShowFilters(false)}
-        accessible
-        accessibilityLabel="Filter projects modal"
-      >
-        <View className="flex-1 bg-black/60">
-          <Animated.View
-            style={{ transform: [{ translateY: filterSlideAnim }], flex: 1 }}
-            className="bg-white/95 rounded-t-3xl mt-20 backdrop-blur-lg"
-          >
-            <View className="flex-row items-center justify-between p-5 border-b border-gray-200/20">
-              <View className="flex-row items-center">
-                <Text className="text-xl font-system-bold text-gray-900">
-                  Filters
-                </Text>
-                {getActiveFilterCount() > 0 && (
-                  <View className="bg-blue-500 rounded-full w-6 h-6 items-center justify-center ml-2">
-                    <Text className="text-white text-xs font-system-bold">
-                      {getActiveFilterCount()}
-                    </Text>
-                  </View>
-                )}
-              </View>
-              <TouchableOpacity
-                accessible
-                accessibilityLabel="Close filter modal"
-                onPress={() => {
-                  setShowFilters(false);
-                }}
-              >
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView className="flex-1">
-              <View className="border-b border-gray-200/20">
-                <View className="px-5 py-3 bg-gray-50">
-                  <Text className="text-base font-system-medium text-gray-800">
-                    CITY
-                  </Text>
-                </View>
-                {filterOptions.city.map((option) => (
-                  <FilterCheckbox
-                    key={option.value}
-                    label={option.label}
-                    value={option.value}
-                    count={option.count}
-                    isSelected={filters.city.includes(option.value)}
-                    onPress={() => {
-                      toggleFilter("city", option.value);
-                    }}
-                  />
-                ))}
-              </View>
-
-              <View className="border-b border-gray-200/20">
-                <View className="px-5 py-3 bg-gray-50">
-                  <Text className="text-base font-system-medium text-gray-800">
-                    STATE
-                  </Text>
-                </View>
-                {filterOptions.state.map((option) => (
-                  <FilterCheckbox
-                    key={option.value}
-                    label={option.label}
-                    value={option.value}
-                    count={option.count}
-                    isSelected={filters.state.includes(option.value)}
-                    onPress={() => {
-                      toggleFilter("state", option.value);
-                    }}
-                  />
-                ))}
-              </View>
-            </ScrollView>
-
-            <View className="flex-row p-5 border-t border-gray-200/20">
-              <TouchableOpacity
-                accessible
-                accessibilityLabel="Clear all filters"
-                onPress={() => {
-                  clearAllFilters();
-                }}
-                className="flex-1 border border-blue-500 rounded-xl py-3 mr-2"
-              >
-                <Text className="text-center text-base font-system-medium text-blue-500">
-                  Clear All
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                accessible
-                accessibilityLabel="Apply filters"
-                onPress={() => {
-                  setShowFilters(false);
-                }}
-                className="flex-1 bg-blue-500 rounded-xl py-3 ml-2"
-              >
-                <Text className="text-white text-center text-base font-system-medium">
-                  Apply Filters {getActiveFilterCount() > 0 && ` (${getActiveFilterCount()})`}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: scale(15),
+    marginTop: scale(30),
+    backgroundColor: '#fff',
+    borderRadius: scale(12),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  emptyStateText: {
+    fontSize: scaleFont(14),
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: scale(10),
+    marginBottom: scale(15),
+    lineHeight: scale(20),
+  },
+  exploreButton: {
+    backgroundColor: '#3366CC',
+    paddingHorizontal: scale(20),
+    paddingVertical: scale(10),
+    borderRadius: scale(8),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#3366CC',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  exploreButtonText: {
+    color: '#fff',
+    fontSize: scaleFont(14),
+    fontWeight: '600',
+  },
+  searchBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9', // Use a lighter background for the search bar
+    borderRadius: scale(10),
+    paddingHorizontal: scale(10),
+    marginTop: scale(10), // Adjust margin as needed
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  searchIcon: {
+    marginRight: scale(8),
+  },
+  searchInput: {
+    flex: 1,
+    height: scale(40), // Standard height for input fields
+    fontSize: scaleFont(14),
+    color: '#0F172A', // Primary text color
+  },
+  clearSearchButton: {
+    marginLeft: scale(8),
+    padding: scale(4),
+  },
+});

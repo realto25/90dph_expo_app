@@ -1,4 +1,9 @@
-import { VisitRequest as ApiVisitRequest, getVisitRequests, submitFeedback } from '@/lib/api';
+import {
+  VisitRequest as ApiVisitRequest,
+  getVisitRequests,
+  submitFeedback,
+  cancelVisitRequest, // Add import
+} from '@/lib/api';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import NetInfo from '@react-native-community/netinfo';
@@ -11,15 +16,18 @@ import {
   KeyboardAvoidingView,
   Platform,
   RefreshControl,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+  StatusBar,
 } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
+import { colors, scale, scaleFont } from '../../../components/theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Types
 interface VisitRequest extends ApiVisitRequest {}
@@ -37,7 +45,6 @@ type IconName = 'person-circle-outline' | 'calendar-outline' | 'alert-circle-out
 const Booking: React.FC = () => {
   const { userId, isSignedIn } = useAuth();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const [bookings, setBookings] = useState<VisitRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +95,9 @@ const Booking: React.FC = () => {
         )
       );
       setError(null);
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
     } catch (err: any) {
       console.error('Error fetching bookings:', err.message);
       setError(err.message || 'Failed to load bookings. Please try again.');
@@ -146,6 +156,9 @@ const Booking: React.FC = () => {
           [id]: { ...prev[id], submitted: true },
         }));
         setExpandedId(null);
+        if (Platform.OS !== 'web') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
       } catch (error: any) {
         Alert.alert('Error', error.message || 'Failed to submit feedback. Please try again.');
       } finally {
@@ -158,6 +171,10 @@ const Booking: React.FC = () => {
   // Handle cancel visit
   const handleCancelVisit = useCallback(
     async (id: string) => {
+      if (!isSignedIn || !userId) {
+        Alert.alert('Error', 'Please sign in to cancel bookings');
+        return;
+      }
       if (!isOnline) {
         Alert.alert('Error', 'No internet connection. Please try again later.');
         return;
@@ -170,9 +187,12 @@ const Booking: React.FC = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Placeholder for actual API call
+              await cancelVisitRequest(id, userId);
               setBookings((prev) => prev.filter((booking) => booking.id !== id));
               Alert.alert('Success', 'Visit request cancelled successfully.');
+              if (Platform.OS !== 'web') {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              }
             } catch (error: any) {
               Alert.alert('Error', error.message || 'Failed to cancel visit. Please try again.');
             }
@@ -180,7 +200,7 @@ const Booking: React.FC = () => {
         },
       ]);
     },
-    [isOnline]
+    [isSignedIn, userId, isOnline]
   );
 
   // Fetch bookings on mount
@@ -191,8 +211,8 @@ const Booking: React.FC = () => {
   // Optimize FlatList rendering
   const getItemLayout = useCallback(
     (_: any, index: number) => ({
-      length: 120,
-      offset: 120 * index,
+      length: scale(120),
+      offset: scale(120) * index,
       index,
     }),
     []
@@ -225,7 +245,7 @@ const Booking: React.FC = () => {
           title="You don't have any upcoming visit requests yet."
           iconName="calendar-outline"
           buttonText="Book a Visit"
-          onPress={() => router.push({ pathname: '(tabs)/Explore' })}
+          onPress={() => router.push('/(guest)/(tabs)/Home')}
         />
       );
     }
@@ -251,10 +271,10 @@ const Booking: React.FC = () => {
             handleCancelVisit={() => handleCancelVisit(item.id)}
           />
         )}
-        contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom }}
+        contentContainerStyle={{ padding: scale(16) }}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fb6e14" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accentOrange} />
         }
         getItemLayout={getItemLayout}
       />
@@ -271,11 +291,23 @@ const Booking: React.FC = () => {
     onRefresh,
     handleSubmitFeedback,
     handleCancelVisit,
-    insets.bottom,
     router,
   ]);
 
-  return <SafeAreaView style={styles.container}>{content}</SafeAreaView>;
+  return (
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.surfaceElevated} translucent />
+      <LinearGradient
+        colors={[colors.surface, colors.surfaceElevated]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={styles.header}
+      >
+        <Text style={styles.headerTitle}>Your Bookings</Text>
+      </LinearGradient>
+      {content}
+    </SafeAreaView>
+  );
 };
 
 // Components
@@ -286,13 +318,14 @@ const EmptyState: React.FC<{
   onPress: () => void;
 }> = ({ title, iconName, buttonText, onPress }) => (
   <View style={styles.emptyState}>
-    <Ionicons name={iconName as any} size={80} color="#6B7280" />
+    <Ionicons name={iconName as any} size={scale(80)} color={colors.text.tertiary} />
     <Text style={styles.emptyStateText}>{title}</Text>
     <TouchableOpacity
       onPress={onPress}
       style={styles.button}
       accessibilityLabel={buttonText}
-      accessibilityRole="button">
+      accessibilityRole="button"
+    >
       <Text style={styles.buttonText}>{buttonText}</Text>
     </TouchableOpacity>
   </View>
@@ -300,20 +333,21 @@ const EmptyState: React.FC<{
 
 const LoadingState: React.FC<{ message: string }> = ({ message }) => (
   <View style={styles.loadingState}>
-    <ActivityIndicator size="large" color="#fb6e14" />
+    <ActivityIndicator size="large" color={colors.accentOrange} />
     <Text style={styles.loadingText}>{message}</Text>
   </View>
 );
 
 const ErrorState: React.FC<{ message: string; onRetry: () => void }> = ({ message, onRetry }) => (
   <View style={styles.errorState}>
-    <Ionicons name="alert-circle-outline" size={80} color="#ef4444" />
+    <Ionicons name="alert-circle-outline" size={scale(80)} color={colors.error} />
     <Text style={styles.errorText}>{message}</Text>
     <TouchableOpacity
       onPress={onRetry}
       style={styles.button}
       accessibilityLabel="Retry loading bookings"
-      accessibilityRole="button">
+      accessibilityRole="button"
+    >
       <Text style={styles.buttonText}>Try Again</Text>
     </TouchableOpacity>
   </View>
@@ -359,12 +393,19 @@ const BookingItem: React.FC<{
     return (
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.bookingContainer}>
+        style={styles.bookingContainer}
+      >
         <TouchableOpacity
-          onPress={toggleExpand}
+          onPress={() => {
+            toggleExpand();
+            if (Platform.OS !== 'web') {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+          }}
           style={styles.bookingHeader}
           accessibilityLabel={`Expand booking details for ${item.plot.title}`}
-          accessibilityRole="button">
+          accessibilityRole="button"
+        >
           <View style={styles.bookingInfo}>
             <Text style={styles.bookingTitle}>{item.plot.title}</Text>
             <Text style={styles.bookingSubTitle}>Project: {item.plot.project.name}</Text>
@@ -376,7 +417,11 @@ const BookingItem: React.FC<{
               <Text style={styles.statusText}>Status: {item.status}</Text>
             </View>
           </View>
-          <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={24} color="#666" />
+          <Ionicons
+            name={isExpanded ? 'chevron-up' : 'chevron-down'}
+            size={scale(24)}
+            color={colors.text.secondary}
+          />
         </TouchableOpacity>
 
         {isExpanded && (
@@ -384,10 +429,16 @@ const BookingItem: React.FC<{
             {isApproved ? <QrCodeSection item={item} /> : <PendingApproval />}
             {item.status === 'PENDING' && (
               <TouchableOpacity
-                onPress={handleCancelVisit}
+                onPress={() => {
+                  handleCancelVisit();
+                  if (Platform.OS !== 'web') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  }
+                }}
                 style={styles.cancelButton}
                 accessibilityLabel="Cancel this visit request"
-                accessibilityRole="button">
+                accessibilityRole="button"
+              >
                 <Text style={styles.cancelButtonText}>Cancel Visit</Text>
               </TouchableOpacity>
             )}
@@ -415,7 +466,12 @@ const QrCodeSection: React.FC<{ item: VisitRequest }> = ({ item }) => {
       <Text style={styles.qrCodeTitle}>Your Visit QR Code</Text>
       {qrCodeValue ? (
         <>
-          <QRCode value={qrCodeValue} size={200} backgroundColor="#fff7ed" color="#1F2937" />
+          <QRCode
+            value={qrCodeValue}
+            size={scale(200)}
+            backgroundColor={colors.surfaceHover}
+            color={colors.text.primary}
+          />
           <Text style={styles.qrCodeExpiry}>
             Expires at:{' '}
             {expiresAtDate && !isNaN(expiresAtDate.getTime())
@@ -454,7 +510,7 @@ const FeedbackForm: React.FC<{
   if (submitted) {
     return (
       <View style={styles.feedbackSubmitted}>
-        <Ionicons name="checkmark-circle" size={24} color="#22c55e" />
+        <Ionicons name="checkmark-circle" size={scale(24)} color={colors.success} />
         <Text style={styles.feedbackSubmittedText}>Feedback already submitted for this visit!</Text>
       </View>
     );
@@ -495,14 +551,20 @@ const RatingSection: React.FC<{
       {[1, 2, 3, 4, 5].map((star) => (
         <TouchableOpacity
           key={star}
-          onPress={() => setRating(star)}
+          onPress={() => {
+            setRating(star);
+            if (Platform.OS !== 'web') {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+          }}
           style={styles.starButton}
           accessibilityLabel={`Rate ${star} stars`}
-          accessibilityRole="button">
+          accessibilityRole="button"
+        >
           <Ionicons
             name={rating >= star ? 'star' : 'star-outline'}
-            size={36}
-            color={rating >= star ? '#fb6e14' : '#ccc'}
+            size={scale(36)}
+            color={rating >= star ? colors.accentOrange : colors.text.tertiary}
           />
         </TouchableOpacity>
       ))}
@@ -527,7 +589,7 @@ const TextInputSection: React.FC<{
     <TextInput
       style={styles.textInput}
       placeholder="Your thoughts..."
-      placeholderTextColor="#6B7280"
+      placeholderTextColor={colors.text.tertiary}
       multiline
       numberOfLines={4}
       value={value || ''}
@@ -550,9 +612,12 @@ const PurchaseInterest: React.FC<{
       {['Yes', 'No', 'Maybe'].map((option) => (
         <TouchableOpacity
           key={option}
-          onPress={() =>
-            setPurchaseInterest(option === 'Yes' ? true : option === 'No' ? false : null)
-          }
+          onPress={() => {
+            setPurchaseInterest(option === 'Yes' ? true : option === 'No' ? false : null);
+            if (Platform.OS !== 'web') {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+          }}
           style={[
             styles.purchaseButton,
             value === (option === 'Yes' ? true : option === 'No' ? false : null)
@@ -560,14 +625,16 @@ const PurchaseInterest: React.FC<{
               : null,
           ]}
           accessibilityLabel={`Select ${option} for purchase interest`}
-          accessibilityRole="button">
+          accessibilityRole="button"
+        >
           <Text
             style={[
               styles.purchaseButtonText,
               value === (option === 'Yes' ? true : option === 'No' ? false : null)
                 ? styles.activePurchaseButtonText
                 : null,
-            ]}>
+            ]}
+          >
             {option}
           </Text>
         </TouchableOpacity>
@@ -581,13 +648,19 @@ const SubmitButton: React.FC<{
   onPress: () => void;
 }> = ({ submitting, onPress }) => (
   <TouchableOpacity
-    onPress={onPress}
+    onPress={() => {
+      onPress();
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+    }}
     disabled={submitting}
     style={[styles.submitButton, submitting ? styles.disabledButton : null]}
     accessibilityLabel="Submit feedback"
-    accessibilityRole="button">
+    accessibilityRole="button"
+  >
     {submitting ? (
-      <ActivityIndicator color="#fff" />
+      <ActivityIndicator color={colors.text.inverse} />
     ) : (
       <Text style={styles.submitButtonText}>Submit Feedback</Text>
     )}
@@ -598,32 +671,52 @@ const SubmitButton: React.FC<{
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.surfaceElevated,
+  },
+  header: {
+    paddingHorizontal: scale(15),
+    paddingVertical: scale(15),
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  headerTitle: {
+    fontSize: scaleFont(24),
+    fontWeight: '700',
+    color: colors.text.primary,
+    textAlign: 'center',
   },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
+    padding: scale(16),
   },
   emptyStateText: {
     textAlign: 'center',
-    fontSize: 18,
+    fontSize: scaleFont(18),
     fontWeight: '500',
-    color: '#6B7280',
-    marginVertical: 8,
+    color: colors.text.tertiary,
+    marginVertical: scale(8),
   },
   button: {
-    backgroundColor: '#fb6e14',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    marginTop: 16,
+    backgroundColor: colors.accentOrange,
+    paddingVertical: scale(12),
+    paddingHorizontal: scale(24),
+    borderRadius: scale(12),
+    marginTop: scale(16),
+    shadowColor: colors.accentOrange,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
   },
   buttonText: {
-    color: '#FFF',
+    color: colors.text.inverse,
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: scaleFont(16),
     textAlign: 'center',
   },
   loadingState: {
@@ -632,35 +725,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    fontSize: 16,
-    color: '#6B7280',
-    marginTop: 8,
+    fontSize: scaleFont(16),
+    color: colors.text.tertiary,
+    marginTop: scale(8),
   },
   errorState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
+    padding: scale(16),
   },
   errorText: {
     textAlign: 'center',
-    fontSize: 18,
+    fontSize: scaleFont(18),
     fontWeight: '500',
-    color: '#ef4444',
-    marginVertical: 8,
+    color: colors.error,
+    marginVertical: scale(8),
   },
   bookingContainer: {
-    marginBottom: 16,
+    marginBottom: scale(16),
   },
   bookingHeader: {
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
+    backgroundColor: colors.surface,
+    borderRadius: scale(12),
+    padding: scale(16),
+    shadowColor: colors.primary,
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 2,
-    borderColor: '#e5e7eb',
+    borderColor: colors.border.light,
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -669,169 +762,173 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   bookingTitle: {
-    fontSize: 20,
+    fontSize: scaleFont(20),
     fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 4,
+    color: colors.text.primary,
+    marginBottom: scale(4),
   },
   bookingSubTitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 2,
+    fontSize: scaleFont(14),
+    color: colors.text.secondary,
+    marginBottom: scale(2),
   },
   bookingDate: {
-    fontSize: 16,
+    fontSize: scaleFont(16),
     fontWeight: '500',
-    color: '#374151',
+    color: colors.text.secondary,
   },
   statusBadge: {
-    marginTop: 8,
+    marginTop: scale(8),
     alignSelf: 'flex-start',
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    borderRadius: 16,
+    paddingVertical: scale(4),
+    paddingHorizontal: scale(12),
+    borderRadius: scale(16),
     borderWidth: 1,
   },
   statusText: {
-    fontSize: 12,
+    fontSize: scaleFont(12),
     fontWeight: '600',
-    color: '#FFF',
+    color: colors.text.inverse,
   },
   expandedSection: {
-    marginTop: 8,
+    marginTop: scale(8),
   },
   qrCodeSection: {
     borderWidth: 1,
-    borderColor: '#fed7aa',
-    backgroundColor: '#fff7ed',
-    borderRadius: 12,
-    padding: 16,
+    borderColor: colors.border.medium,
+    backgroundColor: colors.surfaceHover,
+    borderRadius: scale(12),
+    padding: scale(16),
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: scale(16),
   },
   qrCodeTitle: {
-    fontSize: 18,
+    fontSize: scaleFont(18),
     fontWeight: '600',
-    color: '#c2410c',
-    marginBottom: 12,
+    color: colors.accentOrange,
+    marginBottom: scale(12),
   },
   qrCodeExpiry: {
     fontWeight: '600',
-    color: '#c2410c',
-    marginTop: 8,
+    color: colors.text.secondary,
+    marginTop: scale(8),
+    fontSize: scaleFont(14),
   },
   qrCodeExpired: {
     fontWeight: '700',
-    color: '#e11d48',
-    marginTop: 8,
+    color: colors.error,
+    marginTop: scale(8),
     textAlign: 'center',
+    fontSize: scaleFont(14),
   },
   qrCodeNotAvailable: {
     fontWeight: '700',
-    color: '#e11d48',
+    color: colors.error,
     textAlign: 'center',
+    fontSize: scaleFont(14),
   },
   pendingApproval: {
     borderWidth: 1,
-    borderColor: '#bfdbfe',
-    backgroundColor: '#eff6ff',
-    borderRadius: 12,
-    padding: 16,
+    borderColor: colors.border.light,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: scale(12),
+    padding: scale(16),
     textAlign: 'center',
   },
   pendingApprovalText: {
-    fontSize: 16,
+    fontSize: scaleFont(16),
     fontWeight: '500',
-    color: '#2563eb',
+    color: colors.accent,
   },
   pendingApprovalDescription: {
-    fontSize: 14,
-    color: '#3b82f6',
-    marginTop: 4,
+    fontSize: scaleFont(14),
+    color: colors.text.secondary,
+    marginTop: scale(4),
   },
   cancelButton: {
-    backgroundColor: '#ef4444',
-    borderRadius: 12,
-    padding: 12,
+    backgroundColor: colors.error,
+    borderRadius: scale(12),
+    padding: scale(12),
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: scale(16),
   },
   cancelButtonText: {
-    color: '#FFF',
+    color: colors.text.inverse,
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: scaleFont(16),
   },
   feedbackForm: {
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
+    backgroundColor: colors.surface,
+    borderRadius: scale(12),
+    padding: scale(16),
+    shadowColor: colors.primary,
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.border.light,
   },
   feedbackFormTitle: {
-    fontSize: 18,
+    fontSize: scaleFont(18),
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.text.primary,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: scale(16),
   },
   feedbackSubmitted: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 16,
-    backgroundColor: '#ecfdf5',
-    borderRadius: 12,
+    paddingVertical: scale(16),
+    backgroundColor: colors.success + '15',
+    borderRadius: scale(12),
   },
   feedbackSubmittedText: {
     fontWeight: '600',
-    color: '#22c55e',
-    marginLeft: 8,
+    color: colors.success,
+    marginLeft: scale(8),
+    fontSize: scaleFont(14),
   },
   ratingSection: {
-    marginBottom: 24,
+    marginBottom: scale(24),
   },
   sectionLabel: {
-    fontSize: 16,
+    fontSize: scaleFont(16),
     fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
+    color: colors.text.secondary,
+    marginBottom: scale(8),
   },
   required: {
-    color: '#e11d48',
+    color: colors.error,
   },
   ratingStars: {
     flexDirection: 'row',
     justifyContent: 'center',
   },
   starButton: {
-    padding: 8,
+    padding: scale(8),
   },
   ratingDescription: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: scaleFont(14),
+    color: colors.text.tertiary,
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: scale(4),
   },
   textInputSection: {
-    marginBottom: 24,
+    marginBottom: scale(24),
   },
   textInput: {
-    fontSize: 16,
-    color: '#374151',
-    backgroundColor: '#f9fafb',
+    fontSize: scaleFont(16),
+    color: colors.text.primary,
+    backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 8,
-    padding: 12,
+    borderColor: colors.border.light,
+    borderRadius: scale(8),
+    padding: scale(12),
     textAlignVertical: 'top',
   },
   purchaseInterest: {
-    marginBottom: 32,
+    marginBottom: scale(32),
   },
   purchaseButtons: {
     flexDirection: 'row',
@@ -839,31 +936,32 @@ const styles = StyleSheet.create({
   },
   purchaseButton: {
     flex: 1,
-    marginHorizontal: 4,
-    paddingVertical: 12,
-    borderRadius: 8,
+    marginHorizontal: scale(4),
+    paddingVertical: scale(12),
+    borderRadius: scale(8),
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    backgroundColor: '#f9fafb',
+    borderColor: colors.border.light,
+    backgroundColor: colors.surfaceElevated,
   },
   activePurchaseButton: {
-    backgroundColor: '#fb6e14',
-    borderColor: '#fb6e14',
+    backgroundColor: colors.accentOrange,
+    borderColor: colors.accentOrange,
   },
   activePurchaseButtonText: {
-    color: '#FFF',
+    color: colors.text.inverse,
   },
   purchaseButtonText: {
-    color: '#374151',
+    color: colors.text.secondary,
     textAlign: 'center',
     fontWeight: '500',
+    fontSize: scaleFont(14),
   },
   submitButton: {
-    backgroundColor: '#fb6e14',
-    borderRadius: 12,
-    paddingVertical: 12,
+    backgroundColor: colors.accentOrange,
+    borderRadius: scale(12),
+    paddingVertical: scale(12),
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: colors.accentOrange,
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 2,
@@ -872,22 +970,25 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   submitButtonText: {
-    color: '#FFF',
+    color: colors.text.inverse,
     fontWeight: '700',
-    fontSize: 16,
+    fontSize: scaleFont(16),
   },
 });
 
 // Utility function
 const getStatusColor = (status: string) => {
-  const colors = {
-    APPROVED: { backgroundColor: '#d1fae5', borderColor: '#10b981' },
-    PENDING: { backgroundColor: '#fef3c7', borderColor: '#f59e0b' },
-    REJECTED: { backgroundColor: '#fee2e2', borderColor: '#ef4444' },
-    COMPLETED: { backgroundColor: '#e0f2fe', borderColor: '#3b82f6' },
+  const colorsMap = {
+    APPROVED: { backgroundColor: colors.success + '20', borderColor: colors.success },
+    PENDING: { backgroundColor: colors.warning + '20', borderColor: colors.warning },
+    REJECTED: { backgroundColor: colors.error + '20', borderColor: colors.error },
+    COMPLETED: { backgroundColor: colors.accent + '20', borderColor: colors.accent },
   };
   return (
-    colors[status as keyof typeof colors] || { backgroundColor: '#f3f4f6', borderColor: '#d1d5db' }
+    colorsMap[status as keyof typeof colorsMap] || {
+      backgroundColor: colors.border.light,
+      borderColor: colors.border.medium,
+    }
   );
 };
 
