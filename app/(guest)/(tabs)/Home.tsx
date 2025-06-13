@@ -104,6 +104,9 @@ export default function Page() {
     }
   };
 
+  console.log('[Home] Auth state:', { isAuthLoaded, isSignedIn });
+  console.log('[Home] User state:', { isUserLoaded, userRole: user?.publicMetadata?.role });
+
   // Fetches projects from the API
   const fetchProjects = useCallback(async () => {
     setLoading(true);
@@ -273,6 +276,7 @@ export default function Page() {
 
   // Handles initial authentication and user loading states
   if (!isAuthLoaded || !isUserLoaded) {
+    console.log('[Home] Auth or user not loaded yet');
     return (
       <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
         <LinearGradient
@@ -301,9 +305,19 @@ export default function Page() {
   // Redirects authenticated users based on their role
   if (isSignedIn) {
     const userRole = (user?.publicMetadata as UserMetadata)?.role;
-    if (userRole === "client") return <Redirect href="/(client)/(tabs)/Home" />;
-    if (userRole === "manager") return <Redirect href="/(manager)" />;
+    console.log('[Home] User role:', userRole);
+    
+    if (userRole === "client") {
+      console.log('[Home] Redirecting to client home...');
+      return <Redirect href="/(client)/(tabs)/Home" />;
+    }
+    if (userRole === "manager") {
+      console.log('[Home] Redirecting to manager home...');
+      return <Redirect href="/(manager)" />;
+    }
+    console.log('[Home] No specific role, staying on guest home');
   } else {
+    console.log('[Home] User not signed in, redirecting to sign in...');
     return <Redirect href="/(auth)/sign-in" />;
   }
 

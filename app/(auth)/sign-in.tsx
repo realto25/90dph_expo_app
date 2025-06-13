@@ -37,32 +37,47 @@ export default function SignInScreen() {
   }, [isLoaded, isSignedIn, router]);
 
   const handleGoogleSignIn = useCallback(async () => {
-    if (!isLoaded) return;
+    if (!isLoaded) {
+      console.log('[SignIn] Clerk not loaded yet');
+      return;
+    }
 
     try {
       setLoading(true);
+      console.log('[SignIn] Starting OAuth flow...');
 
-      const { createdSessionId, signIn, signUp, setActive } =
-        await startOAuthFlow({
-          redirectUrl: Linking.createURL("/(guest)/(tabs)/Home", {
-            scheme: "your-app-scheme",
-          }),
-        });
+      const redirectUrl = Linking.createURL("oauth-native-callback", {
+        scheme: "90-dph",
+      });
+
+      console.log('[SignIn] Using redirect URL:', redirectUrl);
+
+      const { createdSessionId, signIn, signUp, setActive } = await startOAuthFlow({
+        redirectUrl,
+      });
+
+      console.log('[SignIn] OAuth flow result:', { createdSessionId, signIn, signUp });
 
       if (createdSessionId) {
+        console.log('[SignIn] Setting active session...');
         await setActive!({ session: createdSessionId });
+        console.log('[SignIn] Redirecting to home...');
         router.replace("/(guest)/(tabs)/Home");
       } else {
         if (signIn || signUp) {
+          console.log('[SignIn] Sign in/up successful, showing alert...');
           Alert.alert(
             "Welcome!",
             "You have successfully signed in.",
-            [{ text: "Continue", onPress: () => router.replace("/(guest)/(tabs)/Home") }]
+            [{ text: "Continue", onPress: () => {
+              console.log('[SignIn] Alert continue pressed, redirecting...');
+              router.replace("/(guest)/(tabs)/Home");
+            }}]
           );
         }
       }
     } catch (err: any) {
-      console.error("OAuth error:", JSON.stringify(err, null, 2));
+      console.error("[SignIn] OAuth error:", JSON.stringify(err, null, 2));
 
       if (err.errors) {
         const errorMessage =

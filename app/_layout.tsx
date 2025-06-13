@@ -38,13 +38,21 @@ function InitialLayout() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded) {
+      console.log('[InitialLayout] Auth not loaded yet');
+      return;
+    }
+
+    console.log('[InitialLayout] Auth state:', { isLoaded, isSignedIn, segments });
 
     const inAuthGroup = segments[0] === "(auth)";
+    console.log('[InitialLayout] Navigation state:', { inAuthGroup, currentSegment: segments[0] });
 
     if (isSignedIn && inAuthGroup) {
+      console.log('[InitialLayout] User is signed in, redirecting to guest home...');
       router.replace("/(guest)/(tabs)/Home");
     } else if (!isSignedIn && !inAuthGroup) {
+      console.log('[InitialLayout] User is not signed in, redirecting to sign in...');
       router.replace("/(auth)/sign-in");
     }
   }, [isSignedIn, segments, isLoaded]);
