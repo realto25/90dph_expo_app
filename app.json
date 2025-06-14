@@ -77,6 +77,12 @@
           "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to access your location.",
           "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to access your location when the app is in use."
         }
+      ],
+      [
+        "expo-document-picker",
+        {
+          "iCloudContainerEnvironment": "Production"
+        }
       ]
     ],
     "scheme": "x90dph",
