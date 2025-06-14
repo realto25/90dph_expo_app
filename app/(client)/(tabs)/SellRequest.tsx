@@ -1,23 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  ScrollView, 
-  StyleSheet, 
-  TouchableOpacity, 
-  TextInput, 
+import { getOwnedLands } from '@/lib/api';
+import { useAuth } from '@clerk/clerk-expo';
+import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { Stack } from 'expo-router';
+import * as React from 'react';
+import {
+  ActivityIndicator,
   Alert,
   Image,
   Platform,
-  ActivityIndicator
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useAuth } from '@clerk/clerk-expo';
 import { RadioButton } from 'react-native-paper';
-import * as ImagePicker from 'expo-image-picker';
-import { Ionicons } from '@expo/vector-icons';
-import { api } from '@/lib/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Stack } from 'expo-router';
 
 // Color palette consistent with other tabs
 const colors = {
@@ -42,54 +42,66 @@ const colors = {
   },
 };
 
-interface Plot {
+interface Land {
   id: string;
-  title: string;
-  dimension: string;
-  location: string;
+  number: string;
+  size: string;
   price: number;
-  imageUrls: string[];
+  status: 'SOLD' | 'ADVANCE' | 'AVAILABLE';
+  imageUrl?: string;
+  plot: {
+    id: string;
+    title: string;
+    dimension: string;
+    location: string;
+    price: number;
+    imageUrls: string[];
+  };
 }
 
 const SellRequestScreen = () => {
   const { userId } = useAuth();
-  const [plots, setPlots] = useState<Plot[]>([]);
-  const [selectedPlot, setSelectedPlot] = useState<string | null>(null);
-  const [askingPrice, setAskingPrice] = useState('');
-  const [marketValue, setMarketValue] = useState(0);
-  const [reason, setReason] = useState('');
-  const [urgency, setUrgency] = useState<'LOW' | 'NORMAL' | 'HIGH'>('NORMAL');
-  const [agentAssistance, setAgentAssistance] = useState(false);
-  const [documents, setDocuments] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [lands, setLands] = React.useState<Land[]>([]);
+  const [selectedLand, setSelectedLand] = React.useState<string | null>(null);
+  const [askingPrice, setAskingPrice] = React.useState('');
+  const [marketValue, setMarketValue] = React.useState(0);
+  const [reason, setReason] = React.useState('');
+  const [urgency, setUrgency] = React.useState<'LOW' | 'NORMAL' | 'HIGH'>('NORMAL');
+  const [agentAssistance, setAgentAssistance] = React.useState(false);
+  const [documents, setDocuments] = React.useState<string[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [fetchingLands, setFetchingLands] = React.useState(false);
+  const [termsAccepted, setTermsAccepted] = React.useState(false);
 
-  useEffect(() => {
-    const fetchUserPlots = async () => {
+  React.useEffect(() => {
+    const fetchUserLands = async () => {
+      if (!userId) return;
+
       try {
-        const response = await api.get(`/plots/owned?userId=${userId}`);
-        setPlots(response.data);
+        setFetchingLands(true);
+        const data = await getOwnedLands(userId);
+        setLands(data);
       } catch (error) {
-        console.error('Error fetching plots:', error);
+        console.error('Error fetching lands:', error);
         Alert.alert('Error', 'Failed to fetch your properties');
+      } finally {
+        setFetchingLands(false);
       }
     };
 
-    if (userId) {
-      fetchUserPlots();
-    }
+    fetchUserLands();
   }, [userId]);
 
-  useEffect(() => {
-    if (selectedPlot) {
-      const plot = plots.find(p => p.id === selectedPlot);
-      if (plot) {
-        setMarketValue(plot.price);
-        // Auto-set asking price to market value initially
-        setAskingPrice(plot.price.toString());
+  React.useEffect(() => {
+    if (selectedLand) {
+      const land = lands.find((l: Land) => l.id === selectedLand);
+      if (land) {
+        setMarketValue(land.price);
+        // Auto-set asking price to land price initially
+        setAskingPrice(land.price.toString());
       }
     }
-  }, [selectedPlot, plots]);
+  }, [selectedLand, lands]);
 
   const pickDocument = async () => {
     try {
@@ -118,13 +130,13 @@ const SellRequestScreen = () => {
   };
 
   const handleSubmit = async () => {
-    if (!selectedPlot) {
+    if (!selectedLand) {
       Alert.alert('Error', 'Please select a property');
       return;
     }
 
-    if (!askingPrice || isNaN(parseFloat(askingPrice))) {
-      Alert.alert('Error', 'Please enter a valid asking price');
+    if (!userId) {
+      Alert.alert('Error', 'User not authenticated');
       return;
     }
 
@@ -133,40 +145,80 @@ const SellRequestScreen = () => {
       return;
     }
 
+    if (!askingPrice || isNaN(parseFloat(askingPrice))) {
+      Alert.alert('Error', 'Please enter a valid asking price');
+      return;
+    }
+
+    const askingPriceNumber = parseFloat(askingPrice);
+    if (askingPriceNumber <= 0) {
+      Alert.alert('Error', 'Asking price must be greater than 0');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const response = await api.post('/sell-requests', {
-        plotId: selectedPlot,
-        askingPrice,
-        reason,
-        urgency,
-        agentAssistance,
-        documents
+      const response = await fetch(`https://90-dph.vercel.app/api/sell-requests`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          landId: selectedLand, // Send landId as expected by backend
+          clerkId: userId, // Send clerkId as expected by backend
+          askingPrice: askingPriceNumber, // Send as number
+          reason: reason.trim() || undefined, // Send undefined if empty
+          urgency: urgency,
+          agentAssistance: agentAssistance,
+          documents: documents.length > 0 ? documents : undefined, // Send undefined if empty
+          termsAccepted: true,
+        }),
       });
 
-      Alert.alert('Success', 'Sell request submitted successfully');
-      // Reset form
-      setSelectedPlot(null);
-      setAskingPrice('');
-      setReason('');
-      setUrgency('NORMAL');
-      setAgentAssistance(false);
-      setDocuments([]);
-      setTermsAccepted(false);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit sell request');
+      }
+
+      Alert.alert(
+        'Success', 
+        'Sell request submitted successfully! You will be notified once it\'s reviewed.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Reset form
+              setSelectedLand(null);
+              setAskingPrice('');
+              setReason('');
+              setUrgency('NORMAL');
+              setAgentAssistance(false);
+              setDocuments([]);
+              setTermsAccepted(false);
+              setMarketValue(0);
+            }
+          }
+        ]
+      );
     } catch (error) {
       console.error('Error submitting sell request:', error);
-      Alert.alert('Error', 'Failed to submit sell request');
+      Alert.alert(
+        'Error',
+        error instanceof Error ? error.message : 'Failed to submit sell request'
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) {
+  if (fetchingLands) {
     return (
       <SafeAreaView style={styles.loadingContainer} edges={['top']}>
         <Stack.Screen options={{ headerShown: false }} />
         <ActivityIndicator size="large" color={colors.accent} />
+        <Text style={styles.loadingText}>Loading your properties...</Text>
       </SafeAreaView>
     );
   }
@@ -174,232 +226,227 @@ const SellRequestScreen = () => {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollViewContent}
-      >
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent}>
         <View style={styles.content}>
-          <Text style={styles.header}>Request to Sell Plot</Text>
+          <Text style={styles.header}>Request to Sell Property</Text>
           <Text style={styles.subHeader}>
-            Create a sell request for your property. Our team will review your request and connect you with potential buyers.
+            Create a sell request for your property. Our team will review your request and connect
+            you with potential buyers.
           </Text>
 
           {/* Select Property Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Select Property</Text>
             <Text style={styles.sectionSubtitle}>Choose which property you want to sell</Text>
-            
-            {plots.map(plot => (
-              <TouchableOpacity
-                key={plot.id}
-                style={[
-                  styles.plotCard,
-                  selectedPlot === plot.id && styles.selectedPlotCard
-                ]}
-                onPress={() => setSelectedPlot(plot.id)}
-              >
-                <Image
-                  source={{ uri: plot.imageUrls[0] || 'https://via.placeholder.com/150' }}
-                  style={styles.plotImage}
-                />
-                <View style={styles.plotInfo}>
-                  <Text style={styles.plotTitle}>{plot.title}</Text>
-                  <Text style={styles.plotDetails}>{plot.dimension}</Text>
-                  <Text style={styles.plotDetails}>{plot.location}</Text>
-                </View>
-                {selectedPlot === plot.id && (
-                  <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
 
-          {/* Pricing Details Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Pricing Details</Text>
-            <Text style={styles.sectionSubtitle}>Set your desired selling price</Text>
-            
-            <View style={styles.priceRow}>
-              <Text style={styles.priceLabel}>Current Market Value (Estimated)</Text>
-              <Text style={styles.priceValue}>${marketValue.toLocaleString()}</Text>
-            </View>
-            
-            <Text style={styles.inputLabel}>Your Asking Price</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your asking price"
-              keyboardType="numeric"
-              value={askingPrice}
-              onChangeText={setAskingPrice}
-            />
-            
-            <Text style={styles.priceTip}>
-              Setting a price within 10% of the market value typically results in faster sales.
-            </Text>
-          </View>
-
-          {/* Additional Details Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Additional Details</Text>
-            
-            <Text style={styles.inputLabel}>Reason for Selling (Optional)</Text>
-            <TextInput
-              style={[styles.input, { height: 80 }]}
-              placeholder="Enter reason for selling"
-              multiline
-              value={reason}
-              onChangeText={setReason}
-            />
-            
-            <Text style={styles.inputLabel}>Urgency Level</Text>
-            <View style={styles.urgencyContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.urgencyOption,
-                  urgency === 'LOW' && styles.selectedUrgencyOption
-                ]}
-                onPress={() => setUrgency('LOW')}
-              >
-                <RadioButton
-                  value="LOW"
-                  status={urgency === 'LOW' ? 'checked' : 'unchecked'}
-                  onPress={() => setUrgency('LOW')}
-                  color="#4CAF50"
-                />
-                <View>
-                  <Text style={styles.urgencyText}>Low</Text>
-                  <Text style={styles.urgencySubtext}>6+ months</Text>
-                </View>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[
-                  styles.urgencyOption,
-                  urgency === 'NORMAL' && styles.selectedUrgencyOption
-                ]}
-                onPress={() => setUrgency('NORMAL')}
-              >
-                <RadioButton
-                  value="NORMAL"
-                  status={urgency === 'NORMAL' ? 'checked' : 'unchecked'}
-                  onPress={() => setUrgency('NORMAL')}
-                  color="#4CAF50"
-                />
-                <View>
-                  <Text style={styles.urgencyText}>Normal</Text>
-                  <Text style={styles.urgencySubtext}>3-6 months</Text>
-                </View>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[
-                  styles.urgencyOption,
-                  urgency === 'HIGH' && styles.selectedUrgencyOption
-                ]}
-                onPress={() => setUrgency('HIGH')}
-              >
-                <RadioButton
-                  value="HIGH"
-                  status={urgency === 'HIGH' ? 'checked' : 'unchecked'}
-                  onPress={() => setUrgency('HIGH')}
-                  color="#4CAF50"
-                />
-                <View>
-                  <Text style={styles.urgencyText}>High</Text>
-                  <Text style={styles.urgencySubtext}>ASAP</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Preferences Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Preferences</Text>
-            
-            <View style={styles.preferenceRow}>
-              <Text style={styles.preferenceText}>Agent Assistance</Text>
-              <TouchableOpacity
-                style={styles.toggleButton}
-                onPress={() => setAgentAssistance(!agentAssistance)}
-              >
-                <View
-                  style={[
-                    styles.toggleBackground,
-                    agentAssistance && styles.toggleBackgroundActive
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.toggleCircle,
-                      agentAssistance && styles.toggleCircleActive
-                    ]}
+            {lands.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="home-outline" size={48} color={colors.text.tertiary} />
+                <Text style={styles.emptyStateText}>No properties found</Text>
+                <Text style={styles.emptyStateSubtext}>
+                  You don`t have any properties available for sale
+                </Text>
+              </View>
+            ) : (
+              lands.map((land) => (
+                <TouchableOpacity
+                  key={land.id}
+                  style={[styles.propertyCard, selectedLand === land.id && styles.selectedPropertyCard]}
+                  onPress={() => setSelectedLand(land.id)}>
+                  <Image
+                    source={{ 
+                      uri: land.imageUrl || 
+                           (land.plot.imageUrls && land.plot.imageUrls[0]) || 
+                           'https://via.placeholder.com/150' 
+                    }}
+                    style={styles.propertyImage}
                   />
-                </View>
-              </TouchableOpacity>
-              <Text style={styles.preferenceSubtext}>
-                Get help from our real estate agents
-              </Text>
-            </View>
-            
-            <Text style={styles.inputLabel}>Document Upload</Text>
-            <Text style={styles.inputSubtext}>
-              Upload additional documents for faster processing
-            </Text>
-            
-            <TouchableOpacity style={styles.uploadButton} onPress={pickDocument}>
-              <Ionicons name="cloud-upload-outline" size={24} color="#4CAF50" />
-              <Text style={styles.uploadButtonText}>Upload Documents</Text>
-            </TouchableOpacity>
-            
-            {documents.length > 0 && (
-              <View style={styles.documentsContainer}>
-                {documents.map((doc, index) => (
-                  <View key={index} style={styles.documentItem}>
-                    <Ionicons name="document-text-outline" size={20} color="#666" />
-                    <Text style={styles.documentName} numberOfLines={1}>
-                      Document {index + 1}
+                  <View style={styles.propertyInfo}>
+                    <Text style={styles.propertyTitle}>
+                      {land.plot.title} - Land #{land.number}
                     </Text>
-                    <TouchableOpacity onPress={() => removeDocument(index)}>
-                      <Ionicons name="close-circle" size={20} color="#FF5252" />
+                    <Text style={styles.propertyDetails}>{land.plot.dimension}</Text>
+                    <Text style={styles.propertyDetails}>{land.plot.location}</Text>
+                    <Text style={styles.propertyDetails}>Size: {land.size}</Text>
+                    <Text style={styles.propertyPrice}>${land.price.toLocaleString()}</Text>
+                  </View>
+                  {selectedLand === land.id && (
+                    <Ionicons name="checkmark-circle" size={24} color={colors.success} />
+                  )}
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+
+          {selectedLand && (
+            <>
+              {/* Pricing Details Section */}
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Pricing Details</Text>
+                <Text style={styles.sectionSubtitle}>Set your desired selling price</Text>
+
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceLabel}>Current Land Value</Text>
+                  <Text style={styles.priceValue}>${marketValue.toLocaleString()}</Text>
+                </View>
+
+                <Text style={styles.inputLabel}>Your Asking Price *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your asking price"
+                  keyboardType="numeric"
+                  value={askingPrice}
+                  onChangeText={setAskingPrice}
+                />
+
+                <Text style={styles.priceTip}>
+                  Setting a price within 10% of the land value typically results in faster sales.
+                </Text>
+              </View>
+
+              {/* Additional Details Section */}
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Additional Details</Text>
+
+                <Text style={styles.inputLabel}>Reason for Selling (Optional)</Text>
+                <TextInput
+                  style={[styles.input, { height: 80 }]}
+                  placeholder="Enter reason for selling"
+                  multiline
+                  value={reason}
+                  onChangeText={setReason}
+                />
+
+                <Text style={styles.inputLabel}>Urgency Level</Text>
+                <View style={styles.urgencyContainer}>
+                  <TouchableOpacity
+                    style={[styles.urgencyOption, urgency === 'LOW' && styles.selectedUrgencyOption]}
+                    onPress={() => setUrgency('LOW')}>
+                    <RadioButton
+                      value="LOW"
+                      status={urgency === 'LOW' ? 'checked' : 'unchecked'}
+                      onPress={() => setUrgency('LOW')}
+                      color={colors.success}
+                    />
+                    <View>
+                      <Text style={styles.urgencyText}>Low</Text>
+                      <Text style={styles.urgencySubtext}>6+ months</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.urgencyOption, urgency === 'NORMAL' && styles.selectedUrgencyOption]}
+                    onPress={() => setUrgency('NORMAL')}>
+                    <RadioButton
+                      value="NORMAL"
+                      status={urgency === 'NORMAL' ? 'checked' : 'unchecked'}
+                      onPress={() => setUrgency('NORMAL')}
+                      color={colors.success}
+                    />
+                    <View>
+                      <Text style={styles.urgencyText}>Normal</Text>
+                      <Text style={styles.urgencySubtext}>3-6 months</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.urgencyOption, urgency === 'HIGH' && styles.selectedUrgencyOption]}
+                    onPress={() => setUrgency('HIGH')}>
+                    <RadioButton
+                      value="HIGH"
+                      status={urgency === 'HIGH' ? 'checked' : 'unchecked'}
+                      onPress={() => setUrgency('HIGH')}
+                      color={colors.success}
+                    />
+                    <View>
+                      <Text style={styles.urgencyText}>High</Text>
+                      <Text style={styles.urgencySubtext}>ASAP</Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Preferences Section */}
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Preferences</Text>
+
+                <View style={styles.preferenceContainer}>
+                  <View style={styles.preferenceRow}>
+                    <Text style={styles.preferenceText}>Agent Assistance</Text>
+                    <TouchableOpacity
+                      style={styles.toggleButton}
+                      onPress={() => setAgentAssistance(!agentAssistance)}>
+                      <View
+                        style={[
+                          styles.toggleBackground,
+                          agentAssistance && styles.toggleBackgroundActive,
+                        ]}>
+                        <View
+                          style={[styles.toggleCircle, agentAssistance && styles.toggleCircleActive]}
+                        />
+                      </View>
                     </TouchableOpacity>
                   </View>
-                ))}
+                  <Text style={styles.preferenceSubtext}>Get help from our real estate agents</Text>
+                </View>
+
+                <Text style={styles.inputLabel}>Document Upload</Text>
+                <Text style={styles.inputSubtext}>
+                  Upload additional documents for faster processing
+                </Text>
+
+                <TouchableOpacity style={styles.uploadButton} onPress={pickDocument}>
+                  <Ionicons name="cloud-upload-outline" size={24} color={colors.accent} />
+                  <Text style={styles.uploadButtonText}>Upload Documents</Text>
+                </TouchableOpacity>
+
+                {documents.length > 0 && (
+                  <View style={styles.documentsContainer}>
+                    {documents.map((doc, index) => (
+                      <View key={index} style={styles.documentItem}>
+                        <Ionicons name="document-text-outline" size={20} color="#666" />
+                        <Text style={styles.documentName} numberOfLines={1}>
+                          Document {index + 1}
+                        </Text>
+                        <TouchableOpacity onPress={() => removeDocument(index)}>
+                          <Ionicons name="close-circle" size={20} color={colors.error} />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
-            )}
-          </View>
 
-          {/* Terms and Conditions */}
-          <View style={styles.termsContainer}>
-            <TouchableOpacity
-              style={styles.checkbox}
-              onPress={() => setTermsAccepted(!termsAccepted)}
-            >
-              <Ionicons
-                name={termsAccepted ? "checkbox-outline" : "square-outline"}
-                size={24}
-                color={termsAccepted ? "#4CAF50" : "#666"}
-              />
-            </TouchableOpacity>
-            <Text style={styles.termsText}>
-              I agree to the Terms & Conditions of the selling process and understand that a commission fee may apply if I use agent services.
-            </Text>
-          </View>
+              {/* Terms and Conditions */}
+              <View style={styles.termsContainer}>
+                <TouchableOpacity
+                  style={styles.checkbox}
+                  onPress={() => setTermsAccepted(!termsAccepted)}>
+                  <Ionicons
+                    name={termsAccepted ? 'checkbox-outline' : 'square-outline'}
+                    size={24}
+                    color={termsAccepted ? colors.success : '#666'}
+                  />
+                </TouchableOpacity>
+                <Text style={styles.termsText}>
+                  I agree to the Terms & Conditions of the selling process and understand that a
+                  commission fee may apply if I use agent services. *
+                </Text>
+              </View>
 
-          {/* Submit Button */}
-          <TouchableOpacity
-            style={[
-              styles.submitButton,
-              loading && styles.submitButtonDisabled
-            ]}
-            onPress={handleSubmit}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color={colors.text.inverse} />
-            ) : (
-              <Text style={styles.submitButtonText}>Submit Sell Request</Text>
-            )}
-          </TouchableOpacity>
+              {/* Submit Button */}
+              <TouchableOpacity
+                style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+                onPress={handleSubmit}
+                disabled={loading}>
+                {loading ? (
+                  <ActivityIndicator color={colors.text.inverse} />
+                ) : (
+                  <Text style={styles.submitButtonText}>Submit Sell Request</Text>
+                )}
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -416,6 +463,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.surfaceElevated,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: colors.text.secondary,
   },
   scrollView: {
     flex: 1,
@@ -455,7 +507,23 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     marginBottom: 16,
   },
-  plotCard: {
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text.secondary,
+    marginTop: 16,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: colors.text.tertiary,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  propertyCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
@@ -468,28 +536,36 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  selectedPlotCard: {
+  selectedPropertyCard: {
     backgroundColor: colors.accentLight + '15',
     borderWidth: 1,
     borderColor: colors.accent,
   },
-  plotImage: {
+  propertyImage: {
     width: 60,
     height: 60,
     borderRadius: 4,
     marginRight: 12,
   },
-  plotInfo: {
+  propertyInfo: {
     flex: 1,
   },
-  plotTitle: {
+  propertyTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: colors.text.primary,
+    marginBottom: 2,
   },
-  plotDetails: {
+  propertyDetails: {
     fontSize: 14,
-    color: '#666',
+    color: colors.text.secondary,
+    marginBottom: 1,
+  },
+  propertyPrice: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.accent,
+    marginTop: 4,
   },
   priceRow: {
     flexDirection: 'row',
@@ -498,12 +574,12 @@ const styles = StyleSheet.create({
   },
   priceLabel: {
     fontSize: 16,
-    color: '#666',
+    color: colors.text.secondary,
   },
   priceValue: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.text.primary,
   },
   inputLabel: {
     fontSize: 16,
@@ -513,7 +589,7 @@ const styles = StyleSheet.create({
   },
   inputSubtext: {
     fontSize: 14,
-    color: '#666',
+    color: colors.text.secondary,
     marginBottom: 12,
   },
   input: {
@@ -528,7 +604,7 @@ const styles = StyleSheet.create({
   },
   priceTip: {
     fontSize: 14,
-    color: '#666',
+    color: colors.text.secondary,
     fontStyle: 'italic',
   },
   urgencyContainer: {
@@ -553,30 +629,32 @@ const styles = StyleSheet.create({
   },
   urgencyText: {
     fontSize: 16,
-    color: '#333',
+    color: colors.text.primary,
   },
   urgencySubtext: {
     fontSize: 12,
-    color: '#666',
+    color: colors.text.secondary,
+  },
+  preferenceContainer: {
+    marginBottom: 16,
   },
   preferenceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
   preferenceText: {
     fontSize: 16,
-    color: '#333',
-    marginRight: 12,
+    color: colors.text.primary,
     fontWeight: '500',
   },
   preferenceSubtext: {
     fontSize: 14,
-    color: '#666',
-    marginTop: 4,
+    color: colors.text.secondary,
   },
   toggleButton: {
-    marginRight: 12,
+    marginLeft: 12,
   },
   toggleBackground: {
     width: 50,
@@ -587,7 +665,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   toggleBackgroundActive: {
-    backgroundColor: '#a5d6a7',
+    backgroundColor: colors.accentLight,
   },
   toggleCircle: {
     width: 24,
@@ -622,14 +700,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 8,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.surfaceElevated,
     borderRadius: 4,
     marginBottom: 8,
   },
   documentName: {
     flex: 1,
     fontSize: 14,
-    color: '#333',
+    color: colors.text.primary,
     marginLeft: 8,
     marginRight: 8,
   },
@@ -644,7 +722,7 @@ const styles = StyleSheet.create({
   termsText: {
     flex: 1,
     fontSize: 14,
-    color: '#666',
+    color: colors.text.secondary,
   },
   submitButton: {
     backgroundColor: colors.accent,

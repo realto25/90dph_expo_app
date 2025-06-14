@@ -132,7 +132,7 @@ export default function ExploreScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     router.push({
-      pathname: '/(guest)/plot/[id]' as 'string',
+      pathname: '/plot/[id]' as 'string',
       params: { id: plotId },
     });
   };

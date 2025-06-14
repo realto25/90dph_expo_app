@@ -1,57 +1,71 @@
-import { Stack, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { useAuth } from '@clerk/clerk-expo';
 import { getOwnedLands } from '@/lib/api';
-import { OwnedPlot } from '../../../types/type';
+import { useAuth } from '@clerk/clerk-expo';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { Stack } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+interface OwnedLand {
+  id: string;
+  number: string;
+  size: string;
+  price: number;
+  status: 'REGISTERED' | 'PENDING' | 'AVAILABLE';
+  imageUrl: string;
+  plotId: string;
+  ownerId: string;
+  createdAt: string;
+  updatedAt: string;
+  plot: {
+    title: string;
+    dimension: string;
+    price: number;
+    location: string;
+    imageUrls: string[];
+    mapEmbedUrl: string | null;
+    qrUrl: string | null;
+  };
+}
 
 const Home = () => {
   const { userId } = useAuth();
-  const router = useRouter();
-  const [ownedPlots, setOwnedPlots] = useState<OwnedPlot[]>([]);
+  const [ownedLands, setOwnedLands] = useState<OwnedLand[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'ALL' | 'SOLD' | 'PENDING' | 'AVAILABLE'>('ALL');
+  const [filter, setFilter] = useState<'ALL' | 'REGISTERED' | 'PENDING' | 'AVAILABLE'>('ALL');
 
   useEffect(() => {
-    const fetchOwnedPlots = async () => {
+    const fetchOwnedLands = async () => {
       if (!userId) {
         setLoading(false);
         return;
       }
       try {
         const data = await getOwnedLands(userId);
-        setOwnedPlots(data);
+        setOwnedLands(data);
       } catch (err: any) {
         setError(err.message || 'Failed to fetch lands');
-        console.error('Failed to fetch owned plots:', err);
+        console.error('Failed to fetch owned lands:', err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchOwnedPlots();
+    fetchOwnedLands();
   }, [userId]);
 
-  const filteredPlots = ownedPlots.filter(plot => 
-    filter === 'ALL' ? true : plot.status === filter
+  const filteredLands = ownedLands.filter((land) =>
+    filter === 'ALL' ? true : land.status === filter
   );
 
-  const totalPlots = ownedPlots.length;
-  const estimatedValue = ownedPlots
-    .reduce((sum, plot) => sum + plot.plot.price, 0)
-    .toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-  const registeredPlots = ownedPlots.filter(plot => plot.status === 'SOLD').length;
+  const totalLands = ownedLands.length;
+  const estimatedValue = ownedLands.reduce((sum, land) => sum + land.price, 0);
+  const formattedValue =
+    estimatedValue >= 10000000
+      ? `₹${(estimatedValue / 10000000).toFixed(2)} Cr`
+      : `₹${(estimatedValue / 100000).toFixed(2)} L`;
+  const registeredLands = ownedLands.filter((land) => land.status === 'REGISTERED').length;
 
   if (loading) {
     return (
@@ -65,91 +79,145 @@ const Home = () => {
     return (
       <SafeAreaView style={styles.errorContainer}>
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity 
-          style={styles.retryButton}
-          onPress={() => router.replace('/home')}
-        >
-          <Text style={styles.retryButtonText}>Try Again</Text>
-        </TouchableOpacity>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen 
-        options={{ 
+      <Stack.Screen
+        options={{
           headerShown: false,
-        }} 
+        }}
       />
-      
+
       <ScrollView style={styles.scrollView}>
         <View style={styles.content}>
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>My Lands</Text>
-            <TouchableOpacity>
-              <Ionicons name="notifications-outline" size={24} color="#333" />
-            </TouchableOpacity>
           </View>
 
           {/* Summary Cards */}
           <View style={styles.summaryContainer}>
             <View style={styles.summaryCard}>
-              <Text style={styles.summaryTitle}>Total Plots</Text>
-              <Text style={styles.summaryValue}>{totalPlots}</Text>
+              <Text style={styles.summaryTitle}>Total Lands</Text>
+              <Text style={styles.summaryValue}>{totalLands}</Text>
             </View>
             <View style={styles.summaryCard}>
               <Text style={styles.summaryTitle}>Estimated Value</Text>
-              <Text style={styles.summaryValue}>{estimatedValue}</Text>
+              <Text style={styles.summaryValue}>{formattedValue}</Text>
             </View>
             <View style={styles.summaryCard}>
               <Text style={styles.summaryTitle}>Registered</Text>
-              <Text style={styles.summaryValue}>{registeredPlots}</Text>
+              <Text style={styles.summaryValue}>{registeredLands}</Text>
             </View>
           </View>
 
           {/* Filter Buttons */}
-          <ScrollView 
-            horizontal 
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
-            style={styles.filterContainer}
-          >
-            {['ALL', 'SOLD', 'PENDING', 'AVAILABLE'].map((item) => (
-              <TouchableOpacity
+            style={styles.filterContainer}>
+            {['ALL', 'REGISTERED', 'PENDING', 'AVAILABLE'].map((item) => (
+              <View
                 key={item}
-                style={[
-                  styles.filterButton,
-                  filter === item && styles.activeFilterButton
-                ]}
-                onPress={() => setFilter(item as any)}
-              >
-                <Text style={[
-                  styles.filterButtonText,
-                  filter === item && styles.activeFilterButtonText
-                ]}>
+                style={[styles.filterButton, filter === item && styles.activeFilterButton]}>
+                <Text
+                  style={[
+                    styles.filterButtonText,
+                    filter === item && styles.activeFilterButtonText,
+                  ]}>
                   {item.charAt(0) + item.slice(1).toLowerCase()}
                 </Text>
-              </TouchableOpacity>
+              </View>
             ))}
           </ScrollView>
 
-          {/* Plots List */}
-          {filteredPlots.length > 0 ? (
-            filteredPlots.map((plot) => (
-              <PlotCard 
-                key={plot.id} 
-                ownedPlot={plot} 
-                onPress={() => router.push(`/lands/${plot.id}`)}
-              />
+          {/* Lands List */}
+          {filteredLands.length > 0 ? (
+            filteredLands.map((land) => (
+              <View key={land.id} style={styles.landCard}>
+                <View style={styles.landImageContainer}>
+                  <Image
+                    source={{
+                      uri:
+                        land.plot.imageUrls?.[0] ||
+                        'https://via.placeholder.com/400x200?text=Land+Plot',
+                    }}
+                    style={styles.landImage}
+                    resizeMode="cover"
+                  />
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      land.status === 'REGISTERED' && styles.statusRegistered,
+                      land.status === 'PENDING' && styles.statusPending,
+                      land.status === 'AVAILABLE' && styles.statusAvailable,
+                    ]}>
+                    <Text style={styles.statusBadgeText}>{land.status}</Text>
+                  </View>
+                  <View style={styles.priceTag}>
+                    <Text style={styles.priceTagText}>
+                      {land.price >= 10000000
+                        ? `₹${(land.price / 10000000).toFixed(2)} Cr`
+                        : `₹${(land.price / 100000).toFixed(2)} L`}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.landInfo}>
+                  <Text style={styles.landTitle} numberOfLines={1}>
+                    {land.plot.title}
+                  </Text>
+                  <Text style={styles.landLocation} numberOfLines={1}>
+                    <Ionicons name="location-sharp" size={16} color="#555" /> {land.plot.location}
+                  </Text>
+
+                  <View style={styles.detailsRow}>
+                    <View style={styles.detailItem}>
+                      <Ionicons name="resize-outline" size={16} color="#666" />
+                      <Text style={styles.detailText}>{land.size} sq ft</Text>
+                    </View>
+                    <View style={styles.detailItem}>
+                      <Ionicons name="document-text-outline" size={16} color="#666" />
+                      <Text style={styles.detailText}>Deed #{land.id.slice(0, 6)}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.divider} />
+
+                  <View style={styles.metaRow}>
+                    <View style={styles.metaItem}>
+                      <Ionicons name="calendar-outline" size={14} color="#666" />
+                      <Text style={styles.metaText}>
+                        {new Date(land.createdAt).toLocaleDateString('en-IN', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                      </Text>
+                    </View>
+                    <View style={styles.metaItem}>
+                      <Ionicons name="time-outline" size={14} color="#666" />
+                      <Text style={styles.metaText}>
+                        {new Date(land.createdAt).toLocaleTimeString('en-IN', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
             ))
           ) : (
             <View style={styles.emptyState}>
               <Ionicons name="earth-outline" size={48} color="#ccc" />
               <Text style={styles.emptyStateText}>No lands found</Text>
               <Text style={styles.emptyStateSubtext}>
-                {filter === 'ALL' 
-                  ? "You don't own any lands yet" 
+                {filter === 'ALL'
+                  ? "You don't own any lands yet"
                   : `No ${filter.toLowerCase()} lands`}
               </Text>
             </View>
@@ -159,58 +227,6 @@ const Home = () => {
     </SafeAreaView>
   );
 };
-
-const PlotCard = ({ 
-  ownedPlot, 
-  onPress 
-}: { 
-  ownedPlot: OwnedPlot; 
-  onPress: () => void 
-}) => (
-  <TouchableOpacity style={styles.plotCard} onPress={onPress}>
-    <View style={styles.plotImageContainer}>
-      <Image 
-        source={{ uri: ownedPlot.plot.image || 'https://via.placeholder.com/400x200?text=Land+Plot' }} 
-        style={styles.plotImage}
-        resizeMode="cover"
-      />
-      <View style={[
-        styles.statusBadge,
-        ownedPlot.status === 'SOLD' && styles.statusSold,
-        ownedPlot.status === 'PENDING' && styles.statusPending,
-        ownedPlot.status === 'AVAILABLE' && styles.statusAvailable
-      ]}>
-        <Text style={styles.statusBadgeText}>{ownedPlot.status}</Text>
-      </View>
-    </View>
-
-    <View style={styles.plotInfo}>
-      <Text style={styles.plotLocation} numberOfLines={1}>
-        <Ionicons name="location-sharp" size={16} color="#555" /> {ownedPlot.plot.location}
-      </Text>
-      
-      <View style={styles.priceRow}>
-        <Text style={styles.plotPrice}>
-          ${ownedPlot.plot.price.toLocaleString('en-US')}
-        </Text>
-        <Text style={styles.plotSize}>{ownedPlot.plot.size} sq ft</Text>
-      </View>
-      
-      <View style={styles.divider} />
-      
-      <View style={styles.metaRow}>
-        <View style={styles.metaItem}>
-          <Ionicons name="document-text" size={14} color="#666" />
-          <Text style={styles.metaText}>Deed #{ownedPlot.id.slice(0, 6)}</Text>
-        </View>
-        <View style={styles.metaItem}>
-          <Ionicons name="calendar" size={14} color="#666" />
-          <Text style={styles.metaText}>Owned 3mo</Text>
-        </View>
-      </View>
-    </View>
-  </TouchableOpacity>
-);
 
 const styles = StyleSheet.create({
   container: {
@@ -235,16 +251,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 20,
     textAlign: 'center',
-  },
-  retryButton: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontWeight: '600',
   },
   scrollView: {
     flex: 1,
@@ -274,12 +280,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   summaryTitle: {
     fontSize: 14,
@@ -311,22 +317,22 @@ const styles = StyleSheet.create({
   activeFilterButtonText: {
     color: '#fff',
   },
-  plotCard: {
+  landCard: {
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 16,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  plotImageContainer: {
-    height: 180,
+  landImageContainer: {
+    height: 200,
     position: 'relative',
   },
-  plotImage: {
+  landImage: {
     width: '100%',
     height: '100%',
   },
@@ -334,12 +340,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     right: 12,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     backgroundColor: '#4CAF50',
   },
-  statusSold: {
+  statusRegistered: {
     backgroundColor: '#4CAF50',
   },
   statusPending: {
@@ -354,39 +360,60 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'uppercase',
   },
-  plotInfo: {
-    padding: 16,
+  priceTag: {
+    position: 'absolute',
+    bottom: 12,
+    left: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
   },
-  plotLocation: {
+  priceTagText: {
+    color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  landInfo: {
+    padding: 16,
+  },
+  landTitle: {
+    fontSize: 20,
+    fontWeight: '600',
     color: '#333',
-    marginBottom: 8,
+    marginBottom: 4,
   },
-  priceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  plotPrice: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#2E7D32',
-  },
-  plotSize: {
+  landLocation: {
     fontSize: 14,
     color: '#666',
+    marginBottom: 12,
+  },
+  detailsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  detailText: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 6,
   },
   divider: {
     height: 1,
     backgroundColor: '#eee',
-    marginVertical: 8,
+    marginVertical: 12,
   },
   metaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 8,
   },
   metaItem: {
     flexDirection: 'row',

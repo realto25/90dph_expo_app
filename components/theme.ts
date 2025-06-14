@@ -7,7 +7,7 @@ export const colors = {
   secondary: '#1E293B',
   accent: '#6366F1',
   accentLight: '#8B5CF6',
-  accentOrange: '#fb6e14', // Added for Booking.tsx
+  accentOrange: '#fb6e14',
   success: '#F97316',
   warning: '#F59E0B',
   error: '#EF4444',
