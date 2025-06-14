@@ -1,8 +1,8 @@
-// app/_layout.tsx - Updated with proper error handling
-import { ClerkProvider, SignedIn, SignedOut } from "@clerk/clerk-expo";
+// app/_layout.tsx
+import { ClerkProvider } from "@clerk/clerk-expo";
 import { Slot, useRouter, useSegments } from "expo-router";
 import * as SecureStore from "expo-secure-store";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-expo";
 import { useFonts } from "expo-font";
 import 'global.css'
@@ -41,49 +41,68 @@ const tokenCache = {
     } catch (err) {
       console.error("[TokenCache] Error deleting token:", err);
     }
-  }
+  },
 };
 
 function InitialLayout() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn, userId } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const [hasRedirected, setHasRedirected] = useState(false);
 
   useEffect(() => {
     if (!isLoaded) {
-      console.log('[InitialLayout] Auth not loaded yet');
+      console.log("[InitialLayout] Auth not loaded yet");
       return;
     }
 
-    console.log('[InitialLayout] Auth state:', { isLoaded, isSignedIn, segments });
+    console.log("[InitialLayout] Auth state:", { isLoaded, isSignedIn, segments });
 
     const inAuthGroup = segments[0] === "(auth)";
-    console.log('[InitialLayout] Navigation state:', { inAuthGroup, currentSegment: segments[0] });
+    const inGuestGroup = segments[0] === "(guest)";
+    const inClientGroup = segments[0] === "(client)";
+    const inManagerGroup = segments[0] === "(manager)";
 
-    if (isSignedIn && inAuthGroup) {
-      console.log('[InitialLayout] User is signed in, redirecting to guest home...');
-      router.replace("/(guest)/(tabs)/Home");
-    } else if (!isSignedIn && !inAuthGroup) {
-      console.log('[InitialLayout] User is not signed in, redirecting to sign in...');
+    console.log("[InitialLayout] Navigation state:", {
+      inAuthGroup,
+      inGuestGroup,
+      inClientGroup,
+      inManagerGroup,
+      currentSegment: segments[0],
+    });
+
+    if (!isSignedIn && !inAuthGroup) {
+      console.log("[InitialLayout] User not signed in, redirecting to sign-in...");
       router.replace("/(auth)/sign-in");
+      setHasRedirected(true);
+    } else if (isSignedIn && userId && !inAuthGroup && !hasRedirected) {
+      console.log("[InitialLayout] User signed in, redirecting to /Role...");
+      router.replace("/(auth)/Role");
+      setHasRedirected(true);
     }
-  }, [isSignedIn, segments, isLoaded]);
+  }, [isLoaded, isSignedIn, userId, segments, router, hasRedirected]);
 
   return <Slot />;
 }
 
 export default function RootLayout() {
   const [isLoaded, error] = useFonts({
-    "manrope": require("../assets/fonts/Manrope-Regular.ttf"),
+    manrope: require("../assets/fonts/Manrope-Regular.ttf"),
     "manrope-medium": require("../assets/fonts/Manrope-Medium.ttf"),
     "manrope-bold": require("../assets/fonts/Manrope-Bold.ttf"),
     Space: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
+
+  if (!isLoaded) {
+    return null;
+  }
+
+  if (error) {
+    console.error("[RootLayout] Font loading error:", error);
+  }
+
   return (
-    <ClerkProvider
-      publishableKey={CLERK_PUBLISHABLE_KEY}
-      tokenCache={tokenCache}
-    >
+    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
       <InitialLayout />
     </ClerkProvider>
   );

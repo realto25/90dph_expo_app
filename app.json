@@ -28,7 +28,9 @@
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
-        "ACCESS_WIFI_STATE"
+        "ACCESS_WIFI_STATE",
+        "ACCESS_FINE_LOCATION",      
+        "ACCESS_COARSE_LOCATION"     
       ],
       "allowBackup": true
     },
@@ -41,6 +43,12 @@
       "expo-router",
       "expo-secure-store",
       "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them with your friends."
+        }
+      ],
       [
         "expo-build-properties",
         {
@@ -61,6 +69,13 @@
               }
             ]
           }
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to access your location.",
+          "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to access your location when the app is in use."
         }
       ]
     ],
