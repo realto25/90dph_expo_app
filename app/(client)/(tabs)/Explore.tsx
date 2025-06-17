@@ -21,19 +21,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { getAllPlots, PlotType } from '../../../lib/api';
 import * as Haptics from 'expo-haptics';
 
-const { width } = Dimensions.get('window'); // No need for height if not directly used
-
-// --- Scaling Utilities ---
+const { width } = Dimensions.get('window'); 
 const guidelineBaseWidth = 375;
 const scale = (size: number) => (width / guidelineBaseWidth) * size;
 const scaleFont = (size: number) => (width / guidelineBaseWidth) * size;
-
 const CARD_WIDTH = width * 0.9;
 const DEFAULT_IMAGE = 'https://placehold.co/600x400/e2e8f0/64748b?text=Plot+Image';
 
-// --- Color Palette (Consistent with previous examples) ---
 const colors = {
-  primary: '#0F172A', // Dark blue/black
+  primary: '#0F172A', 
   secondary: '#1E293B', // Slightly lighter dark blue
   accent: '#FF6B00', // Bright orange for key elements
   accentLight: '#FFA750', // Lighter orange

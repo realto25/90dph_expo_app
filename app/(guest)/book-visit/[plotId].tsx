@@ -1,4 +1,4 @@
-import { useAuth } from '@clerk/clerk-expo'; // Add this import
+import { useAuth } from '@clerk/clerk-expo'; 
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -18,7 +18,7 @@ import { submitVisitRequest, VisitRequestType } from '../../../lib/api';
 export default function BookVisitScreen() {
   const { plotId } = useLocalSearchParams();
   const router = useRouter();
-  const { userId: clerkUserId } = useAuth(); // Get the current user's Clerk ID
+  const { userId: clerkUserId } = useAuth(); 
 
   const [form, setForm] = useState({
     name: '',
@@ -119,11 +119,11 @@ export default function BookVisitScreen() {
           {
             text: 'OK',
             onPress: () => {
-              // Reset form
+         
               setForm({ name: '', email: '', phone: '' });
               setDate(new Date());
               setTime(new Date());
-              // Navigate back or to a success screen
+           
               router.back();
             },
           },

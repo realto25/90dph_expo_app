@@ -19,30 +19,19 @@ import * as Linking from "expo-linking";
 import LottieView from "lottie-react-native";
 import * as SecureStore from "expo-secure-store";
 
-// Assuming 'api' is an axios instance or similar for making API calls
-// You might need to import it like:
-// import api from '../utils/api';
-// And define 'getUserByClerkId' function if it's not part of 'api'
-// For example: const getUserByClerkId = async (userId, token) => api.get(`/users/${userId}`, { headers: { Authorization: `Bearer ${token}` } });
-// Replace these with your actual implementation
 const api = {
   post: async (url: string, data: any, config?: any) => {
     console.log(`[API Mock] POST to ${url} with data:`, data);
-    // Simulate API call
     return new Promise((resolve) => setTimeout(() => resolve({ success: true }), 500));
   },
 };
 
-// This function needs to be defined based on how your backend API is structured
-// It should fetch a user by their Clerk ID and return null or an empty array if not found
 const getUserByClerkId = async (userId: string, token: string | null) => {
   console.log(`[API Mock] Getting user by Clerk ID: ${userId}`);
-  // Simulate API call to check if user exists
-  // In a real scenario, this would make an actual network request
+
   return new Promise((resolve) =>
     setTimeout(() => {
-      // Simulate user not found for the first time, then found on subsequent calls
-      const userExists = Math.random() > 0.5; // Simulate if user exists or not
+      const userExists = Math.random() > 0.5; 
       resolve(userExists ? [{ id: "someUserId", clerkId: userId }] : []);
     }, 500)
   );
@@ -59,7 +48,7 @@ export default function SignInScreen() {
   const { startOAuthFlow } = useOAuth({ strategy: "oauth_google" });
   const [loading, setLoading] = React.useState(false);
 
-  const { isSignedIn, userId, getToken } = useAuth(); // Destructure userId and getToken from useAuth
+  const { isSignedIn, userId, getToken } = useAuth(); 
 
   useEffect(() => {
     const handleUserSession = async () => {
@@ -85,22 +74,18 @@ export default function SignInScreen() {
           } catch (err) {
             console.error("[SignIn] Error ensuring user exists:", err);
             Alert.alert("Error", "Could not verify user existence. Please try again.");
-            // Optionally sign out the user if there's a critical error ensuring user existence
-            // handleSignOut();
           } finally {
             router.replace("/(auth)/Role");
           }
         };
         ensureUserExists();
       } else if (isLoaded && !isSignedIn) {
-        // Only check for existing session if Clerk is loaded and user is not signed in yet
         const checkExistingSession = async () => {
           try {
             const token = await SecureStore.getItemAsync("clerk-token");
             if (token) {
               console.log("[SignIn] Found existing token, attempting to restore session");
               await setActive({ session: token });
-              // The main useEffect will handle navigation after successful session restoration
             }
           } catch (err) {
             console.error("[SignIn] Error checking existing session:", err);
@@ -133,7 +118,6 @@ export default function SignInScreen() {
         console.log("[SignIn] OAuth successful, session created:", createdSessionId);
         await SecureStore.setItemAsync("clerk-token", createdSessionId);
         await clerkSetActive!({ session: createdSessionId });
-        // The main useEffect will handle navigation after setActive completes and updates isSignedIn/userId
       } else {
         console.log("[SignIn] OAuth flow completed but no session created.");
       }
@@ -145,7 +129,6 @@ export default function SignInScreen() {
     }
   }, [isLoaded, startOAuthFlow, setActive]);
 
-  // Handle sign out (kept for completeness, though not directly used in the initial sign-in flow)
   const handleSignOut = async () => {
     try {
       console.log("[SignIn] Attempting to sign out.");
@@ -159,7 +142,6 @@ export default function SignInScreen() {
   };
 
   if (!isLoaded || (isSignedIn && !userId)) {
-    // Show loading indicator until Clerk is fully loaded and user data is available
     return (
       <View style={styles.fullScreenLoading}>
         <ActivityIndicator size="large" color="#4285F4" />

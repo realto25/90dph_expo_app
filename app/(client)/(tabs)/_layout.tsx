@@ -1,28 +1,21 @@
 // app/(guest)/(tabs)/_layout.tsx
 import { Tabs } from "expo-router";
-// import { useAuth } from "@clerk/clerk-expo"; // Not directly used in this layout, can be removed if not needed elsewhere
 import { Ionicons, MaterialIcons, FontAwesome } from "@expo/vector-icons";
 import { StyleSheet, View } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"; // Import useSafeAreaInsets
-
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"; 
 export default function TabLayout() {
-  const insets = useSafeAreaInsets(); // Get safe area insets
-
+  const insets = useSafeAreaInsets(); 
   return (
-    // Removed SafeAreaView here, as the Tabs component will handle it implicitly or
-    // we'll apply padding directly to the tabBar. Keeping it at the top for other content
-    // is fine, but for the tabs, it's better to manage its specific padding.
     <View style={styles.container}>
       <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: "#f97316", // orange-500
-          tabBarInactiveTintColor: "#6b7280", // gray-500
+          tabBarActiveTintColor: "#f97316", 
+          tabBarInactiveTintColor: "#6b7280", 
           tabBarStyle: {
             ...styles.tabBar,
-            // Dynamically add paddingBottom based on safe area insets
             paddingBottom: styles.tabBar.paddingBottom + insets.bottom,
-            height: styles.tabBar.height + insets.bottom, // Adjust height to accommodate padding
+            height: styles.tabBar.height + insets.bottom, 
           },
           tabBarLabelStyle: styles.tabBarLabel,
         }}
@@ -76,17 +69,9 @@ export default function TabLayout() {
     </View>
   );
 }
-
 const styles = StyleSheet.create({
-  // safeArea style is now less critical for the tab bar itself, but useful for main screen content
-  // safeArea: {
-  //   flex: 1,
-  //   backgroundColor: "white",
-  // },
   container: {
     flex: 1,
-    // The main container should probably not have a fixed background here if the tabs are at the bottom
-    // and screens below them might have different backgrounds.
   },
   tabBar: {
     backgroundColor: "white",
@@ -98,15 +83,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 5,
     elevation: 5,
-    height: 60, // Base height
-    paddingBottom: 5, // Base padding
+    height: 60, 
+    paddingBottom: 5, 
     paddingTop: 5,
   },
   tabBarLabel: {
     fontSize: 12,
     fontWeight: '600',
   },
-  // header styles are not directly used here for the tab bar but might be for inner screens
   header: {
     backgroundColor: '#007bff',
   },

@@ -15,9 +15,7 @@ import { useAuth } from "@clerk/clerk-expo";
 import { useRouter } from "expo-router";
 import LottieView from "lottie-react-native";
 import { getUserByClerkId, updateUserProfile, UpdateUserProfileType } from "@/lib/api";
-
 const { width, height } = Dimensions.get("window");
-
 export default function RoleSelectionScreen() {
   const { isSignedIn, isLoaded, userId, getToken } = useAuth();
   const router = useRouter();
@@ -25,28 +23,22 @@ export default function RoleSelectionScreen() {
   const [animationError, setAnimationError] = useState(false);
   const [currentRole, setCurrentRole] = useState<"GUEST" | "CLIENT" | "MANAGER" | null>(null);
   const [roleFetchError, setRoleFetchError] = useState(false);
-
-  // Redirect to sign-in if not signed in
   useEffect(() => {
     if (!isLoaded) {
       console.log("[Role] Auth not loaded yet");
       return;
     }
-
     if (!isSignedIn) {
       console.log("[Role] User not signed in, redirecting to sign-in...");
       router.replace("/(auth)/sign-in");
     }
   }, [isLoaded, isSignedIn, router]);
-
-  // Fetch role when auth is ready
   const fetchCurrentRole = useCallback(async () => {
     if (!userId) {
       console.log("[Role] No user ID found for role fetch");
       setRoleFetchError(true);
       return;
     }
-
     try {
       console.log("[Role] Fetching user role for clerkId:", userId);
       const response = await getUserByClerkId(userId);
@@ -62,7 +54,7 @@ export default function RoleSelectionScreen() {
       } else {
         console.log("[Role] No role found for user");
         setCurrentRole(null);
-        setRoleFetchError(false); // Not exactly an error, just no role set
+        setRoleFetchError(false); 
       }
     } catch (err) {
       console.error("[Role] Error fetching user role:", err);
@@ -70,14 +62,11 @@ export default function RoleSelectionScreen() {
       setRoleFetchError(true);
     }
   }, [userId]);
-
   useEffect(() => {
     if (isLoaded && isSignedIn && userId) {
       fetchCurrentRole();
     }
   }, [isLoaded, isSignedIn, userId, fetchCurrentRole]);
-
-  // Redirect to appropriate home screen if role is already set
   useEffect(() => {
     if (currentRole) {
       console.log(`[Role] Current role detected (${currentRole}), redirecting...`);
@@ -95,7 +84,6 @@ export default function RoleSelectionScreen() {
       }
     }
   }, [currentRole, router]);
-
   const handleRoleSelect = useCallback(
     async (selectedRole: "GUEST" | "CLIENT" | "MANAGER") => {
       if (!userId) {
@@ -103,16 +91,13 @@ export default function RoleSelectionScreen() {
         Alert.alert("Error", "User ID not found. Please sign in again.");
         return;
       }
-
       setLoading(true);
       console.log("[Role] Attempting to set role to:", selectedRole);
-
       try {
         const token = await getToken();
         if (!token) {
           throw new Error("Authentication token not found.");
         }
-
         const updateData: UpdateUserProfileType = { role: selectedRole };
         console.log("[Role] Updating user role for clerkId:", userId, "to:", selectedRole);
         await updateUserProfile(userId, updateData, token);
@@ -131,12 +116,10 @@ export default function RoleSelectionScreen() {
     },
     [userId, getToken]
   );
-
   const continueAsGuest = useCallback(() => {
     console.log("[Role] Continuing as guest...");
     router.replace("/(guest)/(tabs)/Home");
   }, [router]);
-
   if (!isLoaded || !isSignedIn) {
     return (
       <View style={styles.fullScreenLoading}>
@@ -145,8 +128,6 @@ export default function RoleSelectionScreen() {
       </View>
     );
   }
-
-  // Show loading state while checking role
   if (currentRole === null && !roleFetchError) {
     return (
       <View style={styles.fullScreenLoading}>
@@ -155,14 +136,12 @@ export default function RoleSelectionScreen() {
       </View>
     );
   }
-
   let subtitleText;
   if (roleFetchError) {
     subtitleText = "We couldn't verify your account details. Please continue as Guest or try again later.";
   } else {
     subtitleText = "Choose your role to proceed or continue as Guest.";
   }
-
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -183,11 +162,9 @@ export default function RoleSelectionScreen() {
             <Text style={styles.fallbackText}>Welcome</Text>
           </View>
         )}
-
         <View style={styles.contentCard}>
           <Text style={styles.title}>Select Your Role</Text>
           <Text style={styles.subtitle}>{subtitleText}</Text>
-
           {!roleFetchError && (
             <>
               <TouchableOpacity
@@ -215,7 +192,6 @@ export default function RoleSelectionScreen() {
               </TouchableOpacity>
             </>
           )}
-
           <TouchableOpacity
             style={[
               styles.roleButton,

@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import WebView from 'react-native-webview';
-
 interface Camera {
   id: string;
   name: string;
@@ -23,7 +22,6 @@ interface Camera {
   status: 'online' | 'offline';
   lastActive?: string;
 }
-
 const CameraScreen = () => {
   const { userId } = useAuth();
   const [cameras, setCameras] = useState<Camera[]>([]);
@@ -35,7 +33,7 @@ const CameraScreen = () => {
   useEffect(() => {
     fetchCameras();
     return () => {
-      setSelectedCamera(null); // Cleanup on unmount
+      setSelectedCamera(null); 
     };
   }, [userId]);
 
@@ -67,11 +65,9 @@ const CameraScreen = () => {
     if (!ipAddress.startsWith('http') && !ipAddress.startsWith('rtsp')) {
       streamUrl = `http://${ipAddress}`;
     }
-    // Handle Axis cameras specifically
     if (ipAddress.includes('axis')) {
       return `${streamUrl}/axis-cgi/mjpg/video.cgi?resolution=640x480`;
     }
-    // Default MJPEG stream
     return `${streamUrl}/video`;
   };
 

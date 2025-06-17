@@ -17,7 +17,6 @@ export default function NotFoundScreen() {
     </>
   );
 }
-
 const styles = {
   title: `text-xl font-bold`,
   link: `mt-4 pt-4`,
