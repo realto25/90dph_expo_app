@@ -10,10 +10,12 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AnimatedButton } from './AnimatedButton';
+import { AnimatedEntrance } from './AnimatedEntrance';
+import { triggerHaptic } from '../utils/haptics';
 
 // API Configuration
 const API_URL = 'https://90-dph.vercel.app/api';
@@ -26,7 +28,8 @@ const api = axios.create({
 });
 
 // Types
-type LeaveRequestForm = {
+// Rename type to LeaveRequestFormData to avoid conflict
+type LeaveRequestFormData = {
   startDate: Date;
   endDate: Date;
   reason: string;
@@ -35,7 +38,7 @@ type LeaveRequestForm = {
 const LeaveRequestForm = () => {
   const { userId } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState<LeaveRequestForm>({
+  const [formData, setFormData] = useState<LeaveRequestFormData>({
     startDate: new Date(),
     endDate: new Date(),
     reason: '',
@@ -70,7 +73,10 @@ const LeaveRequestForm = () => {
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      triggerHaptic('error');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -82,6 +88,7 @@ const LeaveRequestForm = () => {
       });
 
       if (response.status === 201) {
+        triggerHaptic('success');
         Alert.alert('Success', 'Leave request submitted successfully');
         // Reset form
         setFormData({
@@ -91,6 +98,7 @@ const LeaveRequestForm = () => {
         });
       }
     } catch (error: any) {
+      triggerHaptic('error');
       console.error('Leave request error:', error);
       if (error.response) {
         // The request was made and the server responded with a status code
@@ -121,69 +129,77 @@ const LeaveRequestForm = () => {
       />
       <ScrollView style={styles.scrollView}>
         <View style={styles.formContainer}>
-          <Text style={styles.title}>Request Leave</Text>
-
-          {/* Start Date */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Start Date</Text>
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => setShowStartDatePicker(true)}>
-              <Text style={styles.dateButtonText}>{formData.startDate.toLocaleDateString()}</Text>
-            </TouchableOpacity>
-            {showStartDatePicker && (
-              <DateTimePicker
-                value={formData.startDate}
-                mode="date"
-                display="default"
-                onChange={(event, date) => handleDateChange(event, date, 'start')}
-                minimumDate={new Date()}
+          <AnimatedEntrance index={1}>
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Start Date</Text>
+              <AnimatedButton
+                accessibilityLabel="Select start date"
+                style={styles.dateButton}
+                onPress={() => setShowStartDatePicker(true)}
+              >
+                <Text style={styles.dateButtonText}>{formData.startDate.toLocaleDateString()}</Text>
+              </AnimatedButton>
+              {showStartDatePicker && (
+                <DateTimePicker
+                  value={formData.startDate}
+                  mode="date"
+                  display="default"
+                  onChange={(event, date) => handleDateChange(event, date, 'start')}
+                  minimumDate={new Date()}
+                />
+              )}
+            </View>
+          </AnimatedEntrance>
+          <AnimatedEntrance index={2}>
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>End Date</Text>
+              <AnimatedButton
+                accessibilityLabel="Select end date"
+                style={styles.dateButton}
+                onPress={() => setShowEndDatePicker(true)}
+              >
+                <Text style={styles.dateButtonText}>{formData.endDate.toLocaleDateString()}</Text>
+              </AnimatedButton>
+              {showEndDatePicker && (
+                <DateTimePicker
+                  value={formData.endDate}
+                  mode="date"
+                  display="default"
+                  onChange={(event, date) => handleDateChange(event, date, 'end')}
+                  minimumDate={formData.startDate}
+                />
+              )}
+            </View>
+          </AnimatedEntrance>
+          <AnimatedEntrance index={3}>
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Reason for Leave</Text>
+              <TextInput
+                style={styles.textInput}
+                multiline
+                numberOfLines={4}
+                placeholder="Enter your reason for leave..."
+                value={formData.reason}
+                onChangeText={(text) => setFormData((prev) => ({ ...prev, reason: text }))}
+                textAlignVertical="top"
+                accessibilityLabel="Reason for leave"
               />
-            )}
-          </View>
-
-          {/* End Date */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>End Date</Text>
-            <TouchableOpacity style={styles.dateButton} onPress={() => setShowEndDatePicker(true)}>
-              <Text style={styles.dateButtonText}>{formData.endDate.toLocaleDateString()}</Text>
-            </TouchableOpacity>
-            {showEndDatePicker && (
-              <DateTimePicker
-                value={formData.endDate}
-                mode="date"
-                display="default"
-                onChange={(event, date) => handleDateChange(event, date, 'end')}
-                minimumDate={formData.startDate}
-              />
-            )}
-          </View>
-
-          {/* Reason */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Reason for Leave</Text>
-            <TextInput
-              style={styles.textInput}
-              multiline
-              numberOfLines={4}
-              placeholder="Enter your reason for leave..."
-              value={formData.reason}
-              onChangeText={(text) => setFormData((prev) => ({ ...prev, reason: text }))}
-              textAlignVertical="top"
-            />
-          </View>
-
-          {/* Submit Button */}
-          <TouchableOpacity
-            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-            onPress={handleSubmit}
-            disabled={loading}>
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.submitButtonText}>Submit Request</Text>
-            )}
-          </TouchableOpacity>
+            </View>
+          </AnimatedEntrance>
+          <AnimatedEntrance index={4}>
+            <AnimatedButton
+              accessibilityLabel="Submit leave request"
+              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+              onPress={handleSubmit}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.submitButtonText}>Submit Request</Text>
+              )}
+            </AnimatedButton>
+          </AnimatedEntrance>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -200,12 +216,6 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     padding: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 24,
   },
   inputContainer: {
     marginBottom: 20,

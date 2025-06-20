@@ -1,5 +1,6 @@
 import { useUser } from "@clerk/clerk-expo";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
+import { useRouter } from 'expo-router'; // Correct import for useRouter
 import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
@@ -14,7 +15,6 @@ import {
 } from "react-native";
 import {
   ActivityIndicator,
-  Avatar,
   Surface,
   Text,
 } from "react-native-paper";
@@ -50,10 +50,6 @@ interface DashboardStats {
   recentSales: number;
 }
 
-interface UserMetadata {
-  role?: "guest" | "client" | "manager";
-}
-
 export default function ManagerHomeTabScreen() {
   const { user, isLoaded } = useUser();
   const [loading, setLoading] = useState(true);
@@ -68,10 +64,7 @@ export default function ManagerHomeTabScreen() {
     avgRating: 0,
     recentSales: 0,
   });
-  // No need for projects, plots, visits state if not displaying detailed lists/charts
-  // const [projects, setProjects] = useState<ProjectType[]>([]);
-  // const [plots, setPlots] = useState<PlotType[]>([]);
-  // const [visits, setVisits] = useState<VisitRequest[]>([]);
+  const router = useRouter(); // Correctly get the router instance
 
   const loadData = useCallback(async () => {
     try {
@@ -84,7 +77,6 @@ export default function ManagerHomeTabScreen() {
         console.warn("Clerk user ID not available. Dashboard data might be limited.");
       }
 
-      // We still fetch data to calculate stats, even if not directly displayed
       const results = await Promise.allSettled([
         getProjects(),
         getAllPlots(),
@@ -142,11 +134,6 @@ export default function ManagerHomeTabScreen() {
         recentSales,
       });
 
-      // Removed setting projects, plots, visits state as they are not used for display
-      // setProjects(safeProjectsData);
-      // setPlots(safePlotsData);
-      // setVisits(safeVisitsData);
-
     } catch (error) {
       console.error("Critical error loading dashboard data:", error);
       setError("Failed to load dashboard data. Please check your network and try again.");
@@ -160,10 +147,6 @@ export default function ManagerHomeTabScreen() {
         avgRating: 0,
         recentSales: 0,
       });
-      // Removed setting projects, plots, visits state on error
-      // setProjects([]);
-      // setPlots([]);
-      // setVisits([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -201,13 +184,6 @@ export default function ManagerHomeTabScreen() {
   useEffect(() => {
     showErrorAlert();
   }, [showErrorAlert]);
-
-  const getManagerInitials = () => {
-    if (!user?.firstName && !user?.lastName) return "M";
-    const firstName = user?.firstName || "";
-    const lastName = user?.lastName || "";
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-  };
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -250,13 +226,9 @@ export default function ManagerHomeTabScreen() {
             <Text style={styles.greeting}>{getGreeting()}</Text>
             <Text style={styles.headerTitle}>Dashboard</Text>
           </View>
-          <TouchableOpacity style={styles.profileButton}>
-            <Avatar.Text
-              size={40}
-              label={getManagerInitials()}
-              style={styles.avatar}
-              labelStyle={styles.avatarLabel}
-            />
+          {/* FIX HERE: Change the router.push destination */}
+          <TouchableOpacity style={styles.profileButton} onPress={() => router.push('/Notifications')}>
+            <Ionicons name="notifications-outline" size={32} color="#007AFF" />
           </TouchableOpacity>
         </View>
 
@@ -321,6 +293,11 @@ export default function ManagerHomeTabScreen() {
             <Text style={styles.statLabel}>Pending</Text>
           </Surface>
         </View>
+
+        {/* Removed embedding Notifications here */}
+        {/* <View style={{ marginTop: 24 }}>
+          <Notifications showHeader={false} style={{ backgroundColor: 'transparent', padding: 0 }} simpleList />
+        </View> */}
 
         {/* Empty State - Adjusted slightly for minimalist view */}
         {stats.projects === 0 && stats.plots === 0 && stats.visitRequests === 0 && !loading && !error && (
@@ -462,7 +439,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     textAlign: "center",
   },
-  // Removed chart and table related styles
   emptyStateCard: {
     marginHorizontal: CARD_SPACING,
     marginBottom: CARD_SPACING,

@@ -1,7 +1,8 @@
 import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
-import { useUser } from "@clerk/clerk-expo";
 import { useState, useCallback } from 'react';
 import { Ionicons } from "@expo/vector-icons";
+import LottieView from 'lottie-react-native';
+import { AnimatedEntrance } from './AnimatedEntrance';
 
 // Types
 interface LeaveRequest {
@@ -14,7 +15,6 @@ interface LeaveRequest {
 }
 
 export function LeaveRequestHistory() {
-  const { user } = useUser();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
@@ -53,7 +53,7 @@ export function LeaveRequestHistory() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user?.id]);
+  }, []); // Remove user?.id from dependency array as it's not used
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -119,15 +119,23 @@ export function LeaveRequestHistory() {
 
   if (loading && !refreshing) {
     return (
-      <View style={styles.centered}>
-        <Text>Loading leave requests...</Text>
+      <View style={styles.centered} accessible accessibilityLabel="Loading leave requests">
+        <AnimatedEntrance index={0}>
+          <LottieView
+            source={require('../assets/loading-animation.json')}
+            autoPlay
+            loop
+            style={{ width: 120, height: 120 }}
+          />
+        </AnimatedEntrance>
+        <Text style={{ marginTop: 16 }}>Loading leave requests...</Text>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.centered}>
+      <View style={styles.centered} accessible accessibilityLabel="Error loading leave requests">
         <Text style={styles.errorText}>{error}</Text>
       </View>
     );
@@ -136,15 +144,24 @@ export function LeaveRequestHistory() {
   return (
     <FlatList
       data={leaveRequests}
-      renderItem={renderItem}
+      renderItem={({ item, index }) => (
+        <AnimatedEntrance index={index}>
+          {renderItem({ item })}
+        </AnimatedEntrance>
+      )}
       keyExtractor={(item) => item.id}
       contentContainerStyle={styles.listContainer}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
       ListEmptyComponent={
-        <View style={styles.emptyState}>
-          <Ionicons name="calendar-outline" size={48} color="#94a3b8" />
+        <View style={styles.emptyState} accessible accessibilityLabel="No leave requests found">
+          <LottieView
+            source={require('../assets/loading-animation.json')}
+            autoPlay
+            loop
+            style={{ width: 120, height: 120 }}
+          />
           <Text style={styles.emptyStateText}>No leave requests found</Text>
         </View>
       }
@@ -234,4 +251,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: 'Manrope-Regular',
   },
-}); 
+});

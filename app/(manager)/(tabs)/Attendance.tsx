@@ -81,29 +81,53 @@ const Card = ({ children, style = {} }) => (
 );
 
 const PulsingDot = ({ size = 12, color = colors.success }) => {
-  const pulse = new Animated.Value(1);
+  const pulse = React.useRef(new Animated.Value(1)).current;
+  const opacity = React.useRef(new Animated.Value(0.5)).current;
 
   React.useEffect(() => {
-    const animation = Animated.loop(
+    const pulseAnim = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1.3, duration: 1000, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: 1000, useNativeDriver: true }),
+        Animated.parallel([
+          Animated.timing(pulse, { toValue: 1.6, duration: 900, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0.15, duration: 900, useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(pulse, { toValue: 1, duration: 900, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0.5, duration: 900, useNativeDriver: true }),
+        ]),
       ])
     );
-    animation.start();
-    return () => animation.stop();
-  }, []);
+    pulseAnim.start();
+    return () => pulseAnim.stop();
+  }, [pulse, opacity]);
 
   return (
-    <Animated.View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: color,
-        transform: [{ scale: pulse }],
-      }}
-    />
+    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+      {/* Outer animated pulse */}
+      <Animated.View
+        style={{
+          position: 'absolute',
+          width: size * 2.2,
+          height: size * 2.2,
+          borderRadius: (size * 2.2) / 2,
+          backgroundColor: color,
+          opacity: opacity,
+          transform: [{ scale: pulse }],
+        }}
+      />
+      {/* Inner dot with white border */}
+      <View
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: color,
+          borderWidth: 2,
+          borderColor: '#fff',
+          zIndex: 1,
+        }}
+      />
+    </View>
   );
 };
 
@@ -115,42 +139,15 @@ export default function MarkAttendanceScreen() {
   const [marking, setMarking] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [locationPermissionStatus, setLocationPermissionStatus] =
-    useState<string>("");
+  const [locationPermissionStatus, setLocationPermissionStatus] = useState<string>("");
   const [lastTap, setLastTap] = useState<number>(0);
 
   const ACCEPTABLE_GPS_ACCURACY_THRESHOLD = 1500;
 
-  useEffect(() => {
-    if (!isLoaded || !user) return;
-    initializeData();
-  }, [isLoaded, user]);
-
-  const initializeData = async () => {
-    setLoading(true);
+  const getLocation = React.useCallback(async () => {
     setError(null);
     try {
-      await Promise.all([fetchAssignedOffices(), getLocation()]);
-    } catch (err) {
-      console.error("Initialization error:", err);
-      setError("Failed to initialize data. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    setError(null);
-    await initializeData();
-    setRefreshing(false);
-  };
-
-  const getLocation = async () => {
-    setError(null);
-    try {
-      const { status: existingStatus } =
-        await Location.getForegroundPermissionsAsync();
+      const { status: existingStatus } = await Location.getForegroundPermissionsAsync();
       setLocationPermissionStatus(existingStatus);
 
       if (existingStatus !== "granted") {
@@ -192,9 +189,7 @@ export default function MarkAttendanceScreen() {
       }
 
       const loc = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.BestForNavigation,
-        timeout: 15000,
-        maximumAge: 10000,
+        accuracy: Location.Accuracy.BestForNavigation
       });
 
       if (
@@ -202,9 +197,8 @@ export default function MarkAttendanceScreen() {
         loc.coords.accuracy > ACCEPTABLE_GPS_ACCURACY_THRESHOLD
       ) {
         setError(
-          `Location accuracy too low (${loc.coords.accuracy.toFixed(
-            2
-          )}m). ` + `Please move to an open area for better GPS signal.`
+          `Location accuracy too low (${loc.coords.accuracy.toFixed(2)}m). ` +
+            `Please move to an open area for better GPS signal.`
         );
         setLocation(null);
         return;
@@ -223,16 +217,16 @@ export default function MarkAttendanceScreen() {
       });
     } catch (err) {
       console.error("Error getting location:", err);
-      setError(
-        err.message?.includes("timeout")
+      const message =
+        err instanceof Error && err.message?.includes("timeout")
           ? "Location request timed out. Please try again."
-          : "Failed to get location. Check location settings and try again."
-      );
+          : "Failed to get location. Check location settings and try again.";
+      setError(message);
       setLocation(null);
     }
-  };
+  }, [setError, setLocationPermissionStatus, setLocation]);
 
-  const fetchAssignedOffices = async () => {
+  const fetchAssignedOffices = React.useCallback(async () => {
     if (!user?.id) {
       console.error("No user ID available");
       setError("User authentication required.");
@@ -240,13 +234,7 @@ export default function MarkAttendanceScreen() {
     }
 
     try {
-      console.log("Fetching assigned offices for user:", user.id);
-
-      const url = `${API_URL}/api/managers/assigned-offices?clerkId=${encodeURIComponent(
-        user.id
-      )}`;
-      console.log("Request URL:", url);
-
+      const url = `${API_URL}/api/managers/assigned-offices?clerkId=${encodeURIComponent(user.id)}`;
       const res = await fetch(url, {
         method: "GET",
         headers: {
@@ -255,13 +243,8 @@ export default function MarkAttendanceScreen() {
         },
       });
 
-      console.log("Response status:", res.status);
-      console.log("Response headers:", res.headers);
-
       if (!res.ok) {
         const errorText = await res.text();
-        console.error("Error response:", errorText);
-
         let errorMessage;
         try {
           const errorData = JSON.parse(errorText);
@@ -288,18 +271,14 @@ export default function MarkAttendanceScreen() {
       }
 
       const responseText = await res.text();
-      console.log("Response body:", responseText);
-
       let data;
       try {
         data = JSON.parse(responseText);
       } catch (parseError) {
-        console.error("JSON parse error:", parseError);
         throw new Error("Invalid response format from server.");
       }
 
       if (!Array.isArray(data)) {
-        console.error("Invalid data format:", data);
         throw new Error("Invalid office data format.");
       }
 
@@ -309,7 +288,7 @@ export default function MarkAttendanceScreen() {
       }
 
       const isValid = data.every(
-        (office) =>
+        (office: any) =>
           office.id &&
           office.officeName &&
           typeof office.latitude === "number" &&
@@ -317,23 +296,48 @@ export default function MarkAttendanceScreen() {
       );
 
       if (!isValid) {
-        console.error("Invalid office data structure:", data);
         throw new Error("Invalid office data structure.");
       }
 
       setAssignedOffices(data);
-      console.log("Assigned offices set:", data);
     } catch (err) {
-      console.error("Error fetching offices:", err);
-
-      if (err.name === "TypeError" && err.message.includes("Network request failed")) {
-        setError("Network error. Please check your internet connection.");
-      } else if (err.name === "AbortError" || err.message?.includes("timeout")) {
-        setError("Request timeout. Please try again.");
-      } else {
-        setError(err.message || "Failed to fetch office details.");
+      let errorMessage = "Failed to fetch office details.";
+      if (err instanceof Error) {
+        if (err.name === "TypeError" && err.message.includes("Network request failed")) {
+          errorMessage = "Network error. Please check your internet connection.";
+        } else if (err.name === "AbortError" || err.message?.includes("timeout")) {
+          errorMessage = "Request timeout. Please try again.";
+        } else if (err.message) {
+          errorMessage = err.message;
+        }
       }
+      setError(errorMessage);
     }
+  }, [user, setError, setAssignedOffices]);
+
+  const initializeData = React.useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await Promise.all([fetchAssignedOffices(), getLocation()]);
+    } catch (err) {
+      console.error("Initialization error:", err);
+      setError("Failed to initialize data. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchAssignedOffices, getLocation, setLoading, setError]);
+
+  useEffect(() => {
+    if (!isLoaded || !user) return;
+    initializeData();
+  }, [isLoaded, user, initializeData]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    setError(null);
+    await initializeData();
+    setRefreshing(false);
   };
 
   const calculateDistance = (
@@ -456,18 +460,17 @@ export default function MarkAttendanceScreen() {
       }
     } catch (err) {
       console.error("Error marking attendance:", err);
-
       let errorMessage =
         "Failed to connect to the server. Please check your internet and try again.";
-
-      if (err.name === "TypeError" && err.message.includes("Network request failed")) {
-        errorMessage = "Network error. Please check your internet connection.";
-      } else if (err.name === "AbortError" || err.message?.includes("timeout")) {
-        errorMessage = "Request timeout. Please try again.";
-      } else if (err.message) {
-        errorMessage = err.message;
+      if (err instanceof Error) {
+        if (err.name === "TypeError" && err.message.includes("Network request failed")) {
+          errorMessage = "Network error. Please check your internet connection.";
+        } else if (err.name === "AbortError" || err.message?.includes("timeout")) {
+          errorMessage = "Request timeout. Please try again.";
+        } else if (err.message) {
+          errorMessage = err.message;
+        }
       }
-
       Alert.alert("Network Error", errorMessage);
     } finally {
       setMarking(false);
@@ -692,7 +695,7 @@ export default function MarkAttendanceScreen() {
         // Added paddingTop to account for the status bar height
         // and increased overall vertical padding to make it consistent.
         style={{
-          paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 10 : 10, // Android specific status bar height
+          paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 10 : 10, // Android specific status bar height fallback
           paddingHorizontal: 16,
           paddingBottom: 10, // Consistent with top padding
           marginBottom: 8,
