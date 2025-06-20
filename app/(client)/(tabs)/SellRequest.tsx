@@ -2,6 +2,7 @@ import { getOwnedLands } from '@/lib/api';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Stack } from 'expo-router';
 import * as React from 'react';
 import {
@@ -18,6 +19,8 @@ import {
 } from 'react-native';
 import { RadioButton } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 
 // Color palette consistent with other tabs
 const colors = {
@@ -79,6 +82,7 @@ const SellRequestScreen = () => {
 
       try {
         setFetchingLands(true);
+        // Ensure getOwnedLands is correctly implemented and returning Land[]
         const data = await getOwnedLands(userId);
         setLands(data);
       } catch (error) {
@@ -183,7 +187,7 @@ const SellRequestScreen = () => {
       }
 
       Alert.alert(
-        'Success', 
+        'Success',
         'Sell request submitted successfully! You will be notified once it\'s reviewed.',
         [
           {
@@ -228,52 +232,84 @@ const SellRequestScreen = () => {
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent}>
         <View style={styles.content}>
-          <Text style={styles.header}>Request to Sell Property</Text>
-          <Text style={styles.subHeader}>
-            Create a sell request for your property. Our team will review your request and connect
-            you with potential buyers.
-          </Text>
+          {/* Hero Banner */}
+          <View style={{ marginBottom: 24 }}>
+            <LinearGradient
+              colors={[colors.accent, colors.accentLight]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{
+                borderRadius: 20,
+                padding: 24,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginHorizontal: 0,
+                marginTop: 8,
+              }}
+            >
+              <Ionicons name="pricetag" size={40} color={colors.text.inverse} style={{ marginBottom: 8 }} />
+              <Text style={{ color: colors.text.inverse, fontSize: 20, fontWeight: 'bold', marginBottom: 4, letterSpacing: 0.5 }}>Request to Sell Property</Text>
+              <Text style={{ color: colors.text.inverse, fontSize: 13, textAlign: 'center', opacity: 0.85 }}>
+                Create a sell request for your property. Our team will review your request and connect you with potential buyers.
+              </Text>
+            </LinearGradient>
+          </View>
 
           {/* Select Property Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Select Property</Text>
             <Text style={styles.sectionSubtitle}>Choose which property you want to sell</Text>
 
+            {/* Animated property card */}
             {lands.length === 0 ? (
-              <View style={styles.emptyState}>
+              <Animated.View entering={FadeIn} exiting={FadeOut} layout={Layout.springify()} style={styles.emptyState}>
                 <Ionicons name="home-outline" size={48} color={colors.text.tertiary} />
                 <Text style={styles.emptyStateText}>No properties found</Text>
                 <Text style={styles.emptyStateSubtext}>
                   You don`t have any properties available for sale
                 </Text>
-              </View>
+              </Animated.View>
             ) : (
               lands.map((land) => (
-                <TouchableOpacity
+                <Animated.View
                   key={land.id}
-                  style={[styles.propertyCard, selectedLand === land.id && styles.selectedPropertyCard]}
-                  onPress={() => setSelectedLand(land.id)}>
-                  <Image
-                    source={{ 
-                      uri: land.imageUrl || 
-                           (land.plot.imageUrls && land.plot.imageUrls[0]) || 
-                           'https://via.placeholder.com/150' 
+                  entering={FadeIn}
+                  exiting={FadeOut}
+                  layout={Layout.springify()}
+                  style={styles.propertyCard} // No highlight for selected
+                >
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedLand(land.id);
+                      Haptics.selectionAsync();
                     }}
-                    style={styles.propertyImage}
-                  />
-                  <View style={styles.propertyInfo}>
-                    <Text style={styles.propertyTitle}>
-                      {land.plot.title} - Land #{land.number}
-                    </Text>
-                    <Text style={styles.propertyDetails}>{land.plot.dimension}</Text>
-                    <Text style={styles.propertyDetails}>{land.plot.location}</Text>
-                    <Text style={styles.propertyDetails}>Size: {land.size}</Text>
-                    <Text style={styles.propertyPrice}>${land.price.toLocaleString()}</Text>
-                  </View>
-                  {selectedLand === land.id && (
-                    <Ionicons name="checkmark-circle" size={24} color={colors.success} />
-                  )}
-                </TouchableOpacity>
+                    accessibilityRole="button"
+                    accessibilityLabel={`Select property ${land.plot.title} - Land #${land.number}`}
+                    activeOpacity={0.92}
+                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
+                  >
+                    <Image
+                      source={{
+                        uri: land.imageUrl || (land.plot.imageUrls && land.plot.imageUrls[0]) || 'https://via.placeholder.com/150',
+                      }}
+                      style={styles.propertyImage}
+                    />
+                    <View style={styles.propertyInfo}>
+                      <Text style={[styles.propertyTitle, { fontSize: 13 }]}>
+                        {land.plot.title} - Land #{land.number}
+                      </Text>
+                      <Text style={[styles.propertyDetails, { fontSize: 11 }]}>{land.plot.dimension}</Text>
+                      <Text style={[styles.propertyDetails, { fontSize: 11 }]}>{land.plot.location}</Text>
+                      <Text style={[styles.propertyDetails, { fontSize: 11 }]}>Size: {land.size}</Text>
+                      <Text style={[styles.propertyPrice, { fontSize: 12 }]}>
+                        ₹{land.price.toLocaleString()}
+                      </Text>
+                    </View>
+                    {selectedLand === land.id && (
+                      <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                    )}
+                  </TouchableOpacity>
+                </Animated.View>
               ))
             )}
           </View>
@@ -287,19 +323,19 @@ const SellRequestScreen = () => {
 
                 <View style={styles.priceRow}>
                   <Text style={styles.priceLabel}>Current Land Value</Text>
-                  <Text style={styles.priceValue}>${marketValue.toLocaleString()}</Text>
+                  <Text style={styles.priceValue}>₹{marketValue.toLocaleString()}</Text>
                 </View>
 
                 <Text style={styles.inputLabel}>Your Asking Price *</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { fontSize: 13 }]}
                   placeholder="Enter your asking price"
                   keyboardType="numeric"
                   value={askingPrice}
                   onChangeText={setAskingPrice}
                 />
 
-                <Text style={styles.priceTip}>
+                <Text style={[styles.priceTip, { fontSize: 11 }]}>
                   Setting a price within 10% of the land value typically results in faster sales.
                 </Text>
               </View>
@@ -329,8 +365,8 @@ const SellRequestScreen = () => {
                       color={colors.success}
                     />
                     <View>
-                      <Text style={styles.urgencyText}>Low</Text>
-                      <Text style={styles.urgencySubtext}>6+ months</Text>
+                      <Text style={[styles.urgencyText, { fontSize: 11 }]}>Low</Text>
+                      <Text style={[styles.urgencySubtext, { fontSize: 9 }]}>6+ months</Text>
                     </View>
                   </TouchableOpacity>
 
@@ -344,8 +380,8 @@ const SellRequestScreen = () => {
                       color={colors.success}
                     />
                     <View>
-                      <Text style={styles.urgencyText}>Normal</Text>
-                      <Text style={styles.urgencySubtext}>3-6 months</Text>
+                      <Text style={[styles.urgencyText, { fontSize: 11 }]}>Normal</Text>
+                      <Text style={[styles.urgencySubtext, { fontSize: 9 }]}>3-6 months</Text>
                     </View>
                   </TouchableOpacity>
 
@@ -359,8 +395,8 @@ const SellRequestScreen = () => {
                       color={colors.success}
                     />
                     <View>
-                      <Text style={styles.urgencyText}>High</Text>
-                      <Text style={styles.urgencySubtext}>ASAP</Text>
+                      <Text style={[styles.urgencyText, { fontSize: 11 }]}>High</Text>
+                      <Text style={[styles.urgencySubtext, { fontSize: 9 }]}>ASAP</Text>
                     </View>
                   </TouchableOpacity>
                 </View>
@@ -397,21 +433,30 @@ const SellRequestScreen = () => {
 
                 <TouchableOpacity style={styles.uploadButton} onPress={pickDocument}>
                   <Ionicons name="cloud-upload-outline" size={24} color={colors.accent} />
-                  <Text style={styles.uploadButtonText}>Upload Documents</Text>
+                  <Text style={[styles.uploadButtonText, { fontSize: 12 }]}>
+                    Upload Documents
+                  </Text>
                 </TouchableOpacity>
 
+                {/* Animate document chips */}
                 {documents.length > 0 && (
                   <View style={styles.documentsContainer}>
                     {documents.map((doc, index) => (
-                      <View key={index} style={styles.documentItem}>
+                      <Animated.View
+                        key={index}
+                        entering={FadeIn}
+                        exiting={FadeOut}
+                        layout={Layout.springify()}
+                        style={styles.documentItem}
+                      >
                         <Ionicons name="document-text-outline" size={20} color="#666" />
                         <Text style={styles.documentName} numberOfLines={1}>
                           Document {index + 1}
                         </Text>
-                        <TouchableOpacity onPress={() => removeDocument(index)}>
+                        <TouchableOpacity onPress={() => removeDocument(index)} accessibilityRole="button" accessibilityLabel={`Remove document ${index + 1}`}>
                           <Ionicons name="close-circle" size={20} color={colors.error} />
                         </TouchableOpacity>
-                      </View>
+                      </Animated.View>
                     ))}
                   </View>
                 )}
@@ -428,7 +473,7 @@ const SellRequestScreen = () => {
                     color={termsAccepted ? colors.success : '#666'}
                   />
                 </TouchableOpacity>
-                <Text style={styles.termsText}>
+                <Text style={[styles.termsText, { fontSize: 11 }]}>
                   I agree to the Terms & Conditions of the selling process and understand that a
                   commission fee may apply if I use agent services. *
                 </Text>
@@ -437,12 +482,20 @@ const SellRequestScreen = () => {
               {/* Submit Button */}
               <TouchableOpacity
                 style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-                onPress={handleSubmit}
-                disabled={loading}>
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  handleSubmit();
+                }}
+                disabled={loading}
+                accessibilityRole="button"
+                accessibilityLabel="Submit sell request"
+              >
                 {loading ? (
                   <ActivityIndicator color={colors.text.inverse} />
                 ) : (
-                  <Text style={styles.submitButtonText}>Submit Sell Request</Text>
+                  <Animated.Text entering={FadeIn} exiting={FadeOut} layout={Layout.springify()} style={[styles.submitButtonText, { fontSize: 14 }]}>
+                    Submit Sell Request
+                  </Animated.Text>
                 )}
               </TouchableOpacity>
             </>
@@ -480,13 +533,13 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   header: {
-    fontSize: 28,
+    fontSize: 18,
     fontWeight: '700',
     color: colors.text.primary,
     marginBottom: 8,
   },
   subHeader: {
-    fontSize: 16,
+    fontSize: 12,
     color: colors.text.secondary,
     marginBottom: 24,
   },
@@ -497,13 +550,13 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border.light,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
     color: colors.text.primary,
     marginBottom: 4,
   },
   sectionSubtitle: {
-    fontSize: 14,
+    fontSize: 11,
     color: colors.text.secondary,
     marginBottom: 16,
   },
@@ -536,11 +589,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  selectedPropertyCard: {
-    backgroundColor: colors.accentLight + '15',
-    borderWidth: 1,
-    borderColor: colors.accent,
-  },
   propertyImage: {
     width: 60,
     height: 60,
@@ -551,18 +599,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   propertyTitle: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.text.primary,
     marginBottom: 2,
   },
   propertyDetails: {
-    fontSize: 14,
+    fontSize: 11,
     color: colors.text.secondary,
     marginBottom: 1,
   },
   propertyPrice: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: 'bold',
     color: colors.accent,
     marginTop: 4,
@@ -582,7 +630,7 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   inputLabel: {
-    fontSize: 16,
+    fontSize: 12,
     color: colors.text.primary,
     marginBottom: 8,
     fontWeight: '500',
@@ -597,13 +645,13 @@ const styles = StyleSheet.create({
     borderColor: colors.border.light,
     borderRadius: 12,
     padding: 16,
-    fontSize: 16,
+    fontSize: 13,
     marginBottom: 16,
     backgroundColor: colors.surface,
     color: colors.text.primary,
   },
   priceTip: {
-    fontSize: 14,
+    fontSize: 11,
     color: colors.text.secondary,
     fontStyle: 'italic',
   },
@@ -645,12 +693,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   preferenceText: {
-    fontSize: 16,
+    fontSize: 12,
     color: colors.text.primary,
     fontWeight: '500',
   },
   preferenceSubtext: {
-    fontSize: 14,
+    fontSize: 10,
     color: colors.text.secondary,
   },
   toggleButton: {
@@ -688,7 +736,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentLight + '10',
   },
   uploadButtonText: {
-    fontSize: 16,
+    fontSize: 12,
     color: colors.accent,
     marginLeft: 8,
     fontWeight: '500',
@@ -721,7 +769,7 @@ const styles = StyleSheet.create({
   },
   termsText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 11,
     color: colors.text.secondary,
   },
   submitButton: {
@@ -742,7 +790,7 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     color: colors.text.inverse,
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
   },
 });

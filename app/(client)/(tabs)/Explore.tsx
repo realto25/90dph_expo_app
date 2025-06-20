@@ -13,23 +13,27 @@ import {
   View,
   RefreshControl,
   StyleSheet,
-  Animated,
   StatusBar,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getAllPlots, PlotType } from '../../../lib/api';
 import * as Haptics from 'expo-haptics';
+import Animated, { FadeIn, FadeOut, Layout, useSharedValue, withTiming, withRepeat, useAnimatedStyle } from 'react-native-reanimated';
 
-const { width } = Dimensions.get('window'); 
+const { width } = Dimensions.get('window'); // No need for height if not directly used
+
+// --- Scaling Utilities ---
 const guidelineBaseWidth = 375;
 const scale = (size: number) => (width / guidelineBaseWidth) * size;
 const scaleFont = (size: number) => (width / guidelineBaseWidth) * size;
+
 const CARD_WIDTH = width * 0.9;
 const DEFAULT_IMAGE = 'https://placehold.co/600x400/e2e8f0/64748b?text=Plot+Image';
 
+// --- Color Palette (Consistent with previous examples) ---
 const colors = {
-  primary: '#0F172A', 
+  primary: '#0F172A', // Dark blue/black
   secondary: '#1E293B', // Slightly lighter dark blue
   accent: '#FF6B00', // Bright orange for key elements
   accentLight: '#FFA750', // Lighter orange
@@ -57,8 +61,8 @@ export default function ExploreScreen() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Animations for skeleton loader
-  const shimmerAnim = useRef(new Animated.Value(0)).current;
+  // Animations for skeleton loader (Reanimated v2+)
+  const shimmerAnim = useSharedValue(0);
 
   // --- Fetch Plots Function (with useCallback for optimization) ---
   const fetchPlots = useCallback(async () => {
@@ -92,26 +96,17 @@ export default function ExploreScreen() {
 
   // --- Shimmer Animation for Skeleton Loader ---
   useEffect(() => {
-    const startShimmer = () => {
-      shimmerAnim.setValue(0);
-      Animated.loop(
-        Animated.timing(shimmerAnim, {
-          toValue: 1,
-          duration: 1500,
-          useNativeDriver: true,
-        })
-      ).start();
-    };
-
     if (loading) {
-      startShimmer();
+      shimmerAnim.value = withRepeat(
+        withTiming(1, { duration: 1500 }),
+        -1,
+        false
+      );
     } else {
-      shimmerAnim.stopAnimation();
+      shimmerAnim.value = 0;
     }
-    // Cleanup function for animation
     return () => {
-      shimmerAnim.stopAnimation();
-      shimmerAnim.setValue(0); // Reset animation value
+      shimmerAnim.value = 0;
     };
   }, [loading, shimmerAnim]);
 
@@ -143,19 +138,20 @@ export default function ExploreScreen() {
 
   // --- Skeleton Loader Component ---
   const SkeletonLoader = () => {
-    const translateX = shimmerAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [-CARD_WIDTH, CARD_WIDTH],
-    });
+    const shimmerStyle = useAnimatedStyle(() => ({
+      transform: [
+        {
+          translateX: shimmerAnim.value * (CARD_WIDTH * 2) - CARD_WIDTH,
+        },
+      ],
+    }));
 
     const ShimmerOverlay = ({ style }: { style?: any }) => (
       <Animated.View
         style={[
           StyleSheet.absoluteFillObject,
-          {
-            transform: [{ translateX }],
-            backgroundColor: 'rgba(255,255,255,0.3)',
-          },
+          { backgroundColor: 'rgba(255,255,255,0.3)' },
+          shimmerStyle,
           style,
         ]}
       />
@@ -198,97 +194,108 @@ export default function ExploreScreen() {
 
   // --- Render Individual Plot Item (for FlatList) ---
   const renderPlotItem = ({ item }: { item: PlotType }) => (
-    <TouchableOpacity
-      onPress={() => navigateToPlot(item.id)}
+    <Animated.View
+      entering={FadeIn}
+      exiting={FadeOut}
+      layout={Layout.springify()}
       style={{ width: CARD_WIDTH, marginBottom: scale(20) }}
     >
-      <View style={styles.cardContainer}>
-        {/* Image Container with Gradient Overlay */}
-        <View style={styles.cardImageContainer}>
-          <Image
-            source={{ uri: item.imageUrls?.[0] || DEFAULT_IMAGE }}
-            style={styles.cardImage}
-            resizeMode="cover"
-            onError={(e) => {
-              if (e.nativeEvent.error) {
-                console.warn(`Failed to load image for plot ${item.title}: ${e.nativeEvent.error}`);
-              }
-            }}
-          />
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.7)']}
-            style={styles.imageGradient}
-          />
+      <TouchableOpacity
+        onPress={() => {
+          navigateToPlot(item.id);
+          Haptics.selectionAsync();
+        }}
+        style={{ width: '100%' }}
+        accessibilityRole="button"
+        accessibilityLabel={`View details for ${item.title}`}
+        activeOpacity={0.92}
+      >
+        <View style={styles.cardContainer}>
+          {/* Image Container with Gradient Overlay */}
+          <View style={styles.cardImageContainer}>
+            <Image
+              source={{ uri: item.imageUrls?.[0] || DEFAULT_IMAGE }}
+              style={styles.cardImage}
+              resizeMode="cover"
+              onError={(e) => {
+                if (e.nativeEvent.error) {
+                  console.warn(`Failed to load image for plot ${item.title}: ${e.nativeEvent.error}`);
+                }
+              }}
+            />
+            <LinearGradient
+              colors={['transparent', 'rgba(0,0,0,0.7)']}
+              style={styles.imageGradient}
+            />
 
-          {/* Status Badge */}
-          <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: item.status.toLowerCase() === 'available' ? colors.success : colors.error },
-            ]}
-          >
-            <Text style={styles.statusBadgeText}>
-              {item.status.toLowerCase() === 'available' ? 'Available' : 'Sold Out'}
-            </Text>
-          </View>
-
-          {/* Price Tag */}
-          <View style={styles.priceTag}>
-            <Text style={styles.priceTagMainText}>{formatPrice(item.price)}</Text>
-            <Text style={styles.priceTagSubText}>Onwards</Text>
-          </View>
-        </View>
-
-        {/* Content */}
-        <View style={styles.cardContent}>
-          {/* Title and Location */}
-          <Text style={styles.cardTitle}>{item.title}</Text>
-          <View style={styles.cardLocation}>
-            <Ionicons name="location-outline" size={scale(16)} color={colors.accent} />
-            <Text style={styles.cardLocationText}>{item.location}</Text>
-          </View>
-
-          {/* Details Grid */}
-          <View style={styles.cardDetailsGrid}>
-            <View style={styles.cardDetailItem}>
-              <Ionicons name="resize-outline" size={scale(16)} color={colors.accent} />
-              <Text style={styles.cardDetailText}>{item.dimension}</Text>
-            </View>
-
-            <View style={styles.cardDetailItem}>
-              <Ionicons name="compass-outline" size={scale(16)} color={colors.accent} />
-              <Text style={styles.cardDetailText}>
-                {item.facing}
+            {/* Status Badge */}
+            <View
+              style={[
+                styles.statusBadge,
+                { backgroundColor: item.status.toLowerCase() === 'available' ? colors.success : colors.error },
+              ]}
+            >
+              <Text style={styles.statusBadgeText}>
+                {item.status.toLowerCase() === 'available' ? 'Available' : 'Sold Out'}
               </Text>
             </View>
+
+            {/* Price Tag */}
+            <View style={styles.priceTag}>
+              <Text style={styles.priceTagMainText}>{formatPrice(item.price)}</Text>
+              <Text style={styles.priceTagSubText}>Onwards</Text>
+            </View>
           </View>
 
-          {/* Amenities */}
-          {item.amenities && item.amenities.length > 0 && (
-            <View style={styles.cardAmenitiesContainer}>
-              {item.amenities.slice(0, 3).map((amenity, index) => (
-                <View key={index} style={styles.amenityTag}>
-                  <Text style={styles.amenityText}>{amenity}</Text>
-                </View>
-              ))}
-              {item.amenities.length > 3 && (
-                <View style={styles.amenityTag}>
-                  <Text style={styles.amenityText}>+{item.amenities.length - 3} more</Text>
-                </View>
-              )}
+          {/* Content */}
+          <View style={styles.cardContent}>
+            {/* Title and Location */}
+            <Text style={styles.cardTitle}>{item.title}</Text>
+            <View style={styles.cardLocation}>
+              <Ionicons name="location-outline" size={scale(16)} color={colors.accent} />
+              <Text style={styles.cardLocationText}>{item.location}</Text>
             </View>
-          )}
 
-          {/* View Details Button */}
-          <TouchableOpacity
-            onPress={() => navigateToPlot(item.id)}
-            style={styles.viewDetailsButton}
-          >
-            <Text style={styles.viewDetailsButtonText}>View Details</Text>
-          </TouchableOpacity>
+            {/* Details Grid */}
+            <View style={styles.cardDetailsGrid}>
+              <View style={styles.cardDetailItem}>
+                <Ionicons name="resize-outline" size={scale(16)} color={colors.accent} />
+                <Text style={styles.cardDetailText}>{item.dimension}</Text>
+              </View>
+
+              <View style={styles.cardDetailItem}>
+                <Ionicons name="compass-outline" size={scale(16)} color={colors.accent} />
+                <Text style={styles.cardDetailText}>{item.facing}</Text>
+              </View>
+            </View>
+
+            {/* Amenities */}
+            {item.amenities && item.amenities.length > 0 && (
+              <View style={styles.cardAmenitiesContainer}>
+                {item.amenities.slice(0, 3).map((amenity: string, index: number) => (
+                  <View key={index} style={styles.amenityTag}>
+                    <Text style={styles.amenityText}>{amenity}</Text>
+                  </View>
+                ))}
+                {item.amenities.length > 3 && (
+                  <View style={styles.amenityTag}>
+                    <Text style={styles.amenityText}>+{item.amenities.length - 3} more</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* View Details Button */}
+            <TouchableOpacity
+              onPress={() => navigateToPlot(item.id)}
+              style={styles.viewDetailsButton}
+            >
+              <Text style={styles.viewDetailsButtonText}>View Details</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </Animated.View>
   );
 
   // --- Conditional Rendering for Loading, Error, Empty States ---
@@ -296,7 +303,9 @@ export default function ExploreScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
-        <SkeletonLoader />
+        <Animated.View entering={FadeIn} exiting={FadeOut} layout={Layout.springify()}>
+          <SkeletonLoader />
+        </Animated.View>
       </SafeAreaView>
     );
   }
@@ -305,11 +314,13 @@ export default function ExploreScreen() {
     return (
       <SafeAreaView style={styles.flexCenter} edges={['top', 'bottom']}>
         <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
-        <Ionicons name="alert-circle-outline" size={scale(64)} color={colors.error} />
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity onPress={fetchPlots} style={styles.retryButton}>
-          <Text style={styles.retryButtonText}>Try Again</Text>
-        </TouchableOpacity>
+        <Animated.View entering={FadeIn} exiting={FadeOut} layout={Layout.springify()} style={{alignItems:'center'}}>
+          <Ionicons name="alert-circle-outline" size={scale(64)} color={colors.error} />
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity onPress={fetchPlots} style={styles.retryButton} accessibilityRole="button" accessibilityLabel="Retry loading plots">
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        </Animated.View>
       </SafeAreaView>
     );
   }
@@ -317,8 +328,8 @@ export default function ExploreScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
-      {/* Search Bar */}
-      <View style={styles.searchBarWrapper}>
+      {/* Animated Search Bar */}
+      <Animated.View entering={FadeIn} exiting={FadeOut} layout={Layout.springify()} style={styles.searchBarWrapper}>
         <View style={styles.searchBar}>
           <Ionicons name="search-outline" size={scale(20)} color={colors.text.tertiary} />
           <TextInput
@@ -329,13 +340,14 @@ export default function ExploreScreen() {
             placeholderTextColor={colors.text.tertiary}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchButton}>
-              <Ionicons name="close-circle" size={scale(20)} color={colors.text.tertiary} />
-            </TouchableOpacity>
+            <Animated.View entering={FadeIn} exiting={FadeOut} layout={Layout.springify()}>
+              <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchButton} accessibilityRole="button" accessibilityLabel="Clear search">
+                <Ionicons name="close-circle" size={scale(20)} color={colors.text.tertiary} />
+              </TouchableOpacity>
+            </Animated.View>
           )}
         </View>
-      </View>
-
+      </Animated.View>
       <FlatList
         data={filteredPlots}
         renderItem={renderPlotItem}
@@ -350,13 +362,13 @@ export default function ExploreScreen() {
           />
         }
         ListEmptyComponent={
-          <View style={styles.emptyStateContainer}>
+          <Animated.View entering={FadeIn} exiting={FadeOut} layout={Layout.springify()} style={styles.emptyStateContainer}>
             <Ionicons name="search" size={scale(64)} color={colors.accentLight} />
             <Text style={styles.emptyStateTitle}>No plots found</Text>
             <Text style={styles.emptyStateText}>
               Try searching with different keywords or pull to refresh.
             </Text>
-          </View>
+          </Animated.View>
         }
       />
     </SafeAreaView>

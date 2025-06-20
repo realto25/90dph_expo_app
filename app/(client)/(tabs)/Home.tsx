@@ -3,8 +3,10 @@ import { useAuth } from '@clerk/clerk-expo';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 
 interface OwnedLand {
   id: string;
@@ -119,25 +121,57 @@ const Home = () => {
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.filterContainer}>
-            {['ALL', 'REGISTERED', 'PENDING', 'AVAILABLE'].map((item) => (
-              <View
-                key={item}
-                style={[styles.filterButton, filter === item && styles.activeFilterButton]}>
-                <Text
-                  style={[
-                    styles.filterButtonText,
-                    filter === item && styles.activeFilterButtonText,
-                  ]}>
-                  {item.charAt(0) + item.slice(1).toLowerCase()}
-                </Text>
-              </View>
-            ))}
+            {['ALL', 'REGISTERED', 'PENDING', 'AVAILABLE'].map((item) => {
+              const isActive = filter === item;
+              return (
+                <Animated.View
+                  key={item}
+                  entering={FadeIn}
+                  exiting={FadeOut}
+                  layout={Layout.springify()}
+                  style={{
+                    marginRight: 8,
+                    borderRadius: 20,
+                    overflow: 'hidden',
+                  }}>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={`Filter ${item}`}
+                    activeOpacity={0.85}
+                    style={[
+                      styles.filterButton,
+                      isActive && styles.activeFilterButton,
+                      { elevation: isActive ? 4 : 0, shadowColor: isActive ? '#f97316' : undefined },
+                    ]}
+                    onPress={() => {
+                      setFilter(item as typeof filter);
+                      Haptics.selectionAsync();
+                    }}>
+                    <Animated.Text
+                      style={[
+                        styles.filterButtonText,
+                        isActive && styles.activeFilterButtonText,
+                        { fontWeight: isActive ? 'bold' : '500', fontSize: isActive ? 15 : 13 },
+                      ]}
+                      entering={FadeIn}
+                      exiting={FadeOut}>
+                      {item.charAt(0) + item.slice(1).toLowerCase()}
+                    </Animated.Text>
+                  </TouchableOpacity>
+                </Animated.View>
+              );
+            })}
           </ScrollView>
 
           {/* Lands List */}
           {filteredLands.length > 0 ? (
             filteredLands.map((land) => (
-              <View key={land.id} style={styles.landCard}>
+              <Animated.View
+                key={land.id}
+                entering={FadeIn}
+                exiting={FadeOut}
+                layout={Layout.springify()}
+                style={styles.landCard}>
                 <View style={styles.landImageContainer}>
                   <Image
                     source={{
@@ -209,10 +243,14 @@ const Home = () => {
                     </View>
                   </View>
                 </View>
-              </View>
+              </Animated.View>
             ))
           ) : (
-            <View style={styles.emptyState}>
+            <Animated.View
+              entering={FadeIn}
+              exiting={FadeOut}
+              layout={Layout.springify()}
+              style={styles.emptyState}>
               <Ionicons name="earth-outline" size={48} color="#ccc" />
               <Text style={styles.emptyStateText}>No lands found</Text>
               <Text style={styles.emptyStateSubtext}>
@@ -220,7 +258,7 @@ const Home = () => {
                   ? "You don't own any lands yet"
                   : `No ${filter.toLowerCase()} lands`}
               </Text>
-            </View>
+            </Animated.View>
           )}
         </View>
       </ScrollView>

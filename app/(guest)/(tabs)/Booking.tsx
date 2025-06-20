@@ -28,6 +28,24 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { colors, scale, scaleFont } from '../../../components/theme';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AnimatedEntrance } from '../../../components/AnimatedEntrance';
+import { AnimatedButton } from '../../../components/AnimatedButton';
+// Minimal LottieLoader implementation for Expo/React Native
+import LottieView from 'lottie-react-native';
+
+export const LottieLoader: React.FC<{ source: any; style?: any }> = ({ source, style }) => (
+  <LottieView
+    source={source}
+    autoPlay
+    loop
+    style={[{ width: 180, height: 180, alignSelf: 'center' }, style]}
+  />
+);
+
+// Lottie sources
+const loadingLottie = require('../../../assets/loading-animation.json');
+const emptyLottie = require('../../../assets/login-anime.json');
+const errorLottie = require('../../../assets/role-select.json');
 
 // Types
 interface VisitRequest extends ApiVisitRequest {}
@@ -227,16 +245,17 @@ const Booking: React.FC = () => {
           iconName="person-circle-outline"
           buttonText="Sign In Now"
           onPress={() => router.push('/(auth)/sign-in')}
+          lottie={emptyLottie}
         />
       );
     }
 
     if (loading) {
-      return <LoadingState message="Loading your bookings..." />;
+      return <LoadingState message="Loading your bookings..." lottie={loadingLottie} />;
     }
 
     if (error) {
-      return <ErrorState message={error} onRetry={fetchBookings} />;
+      return <ErrorState message={error} onRetry={fetchBookings} lottie={errorLottie} />;
     }
 
     if (bookings.length === 0) {
@@ -246,6 +265,7 @@ const Booking: React.FC = () => {
           iconName="calendar-outline"
           buttonText="Book a Visit"
           onPress={() => router.push('/(guest)/(tabs)/Home')}
+          lottie={emptyLottie}
         />
       );
     }
@@ -254,22 +274,24 @@ const Booking: React.FC = () => {
       <FlatList
         data={bookings}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <BookingItem
-            item={item}
-            expandedId={expandedId}
-            toggleExpand={() => setExpandedId((prev) => (prev === item.id ? null : item.id))}
-            feedbackData={feedbackData[item.id]}
-            setFeedbackData={(data) =>
-              setFeedbackData((prev) => ({
-                ...prev,
-                [item.id]: { ...prev[item.id], ...data },
-              }))
-            }
-            submitting={submitting[item.id]}
-            handleSubmitFeedback={() => handleSubmitFeedback(item.id)}
-            handleCancelVisit={() => handleCancelVisit(item.id)}
-          />
+        renderItem={({ item, index }) => (
+          <AnimatedEntrance index={index}>
+            <BookingItem
+              item={item}
+              expandedId={expandedId}
+              toggleExpand={() => setExpandedId((prev) => (prev === item.id ? null : item.id))}
+              feedbackData={feedbackData[item.id]}
+              setFeedbackData={(data) =>
+                setFeedbackData((prev) => ({
+                  ...prev,
+                  [item.id]: { ...prev[item.id], ...data },
+                }))
+              }
+              submitting={submitting[item.id]}
+              handleSubmitFeedback={() => handleSubmitFeedback(item.id)}
+              handleCancelVisit={() => handleCancelVisit(item.id)}
+            />
+          </AnimatedEntrance>
         )}
         contentContainerStyle={{ padding: scale(16) }}
         showsVerticalScrollIndicator={false}
@@ -292,6 +314,8 @@ const Booking: React.FC = () => {
     handleSubmitFeedback,
     handleCancelVisit,
     router,
+    fetchBookings,
+    getItemLayout,
   ]);
 
   return (
@@ -316,40 +340,43 @@ const EmptyState: React.FC<{
   iconName: IconName;
   buttonText: string;
   onPress: () => void;
-}> = ({ title, iconName, buttonText, onPress }) => (
+  lottie?: any;
+}> = ({ title, iconName, buttonText, onPress, lottie }) => (
   <View style={styles.emptyState}>
-    <Ionicons name={iconName as any} size={scale(80)} color={colors.text.tertiary} />
+    {lottie ? (
+      <LottieLoader source={lottie} style={{ marginBottom: scale(8) }} />
+    ) : (
+      <Ionicons name={iconName as any} size={scale(80)} color={colors.text.tertiary} />
+    )}
     <Text style={styles.emptyStateText}>{title}</Text>
-    <TouchableOpacity
-      onPress={onPress}
-      style={styles.button}
-      accessibilityLabel={buttonText}
-      accessibilityRole="button"
-    >
+    <AnimatedButton onPress={onPress} style={styles.button} accessibilityLabel={buttonText} accessibilityRole="button">
       <Text style={styles.buttonText}>{buttonText}</Text>
-    </TouchableOpacity>
+    </AnimatedButton>
   </View>
 );
 
-const LoadingState: React.FC<{ message: string }> = ({ message }) => (
+const LoadingState: React.FC<{ message: string; lottie?: any }> = ({ message, lottie }) => (
   <View style={styles.loadingState}>
-    <ActivityIndicator size="large" color={colors.accentOrange} />
+    {lottie ? (
+      <LottieLoader source={lottie} />
+    ) : (
+      <ActivityIndicator size="large" color={colors.accentOrange} />
+    )}
     <Text style={styles.loadingText}>{message}</Text>
   </View>
 );
 
-const ErrorState: React.FC<{ message: string; onRetry: () => void }> = ({ message, onRetry }) => (
+const ErrorState: React.FC<{ message: string; onRetry: () => void; lottie?: any }> = ({ message, onRetry, lottie }) => (
   <View style={styles.errorState}>
-    <Ionicons name="alert-circle-outline" size={scale(80)} color={colors.error} />
+    {lottie ? (
+      <LottieLoader source={lottie} />
+    ) : (
+      <Ionicons name="alert-circle-outline" size={scale(80)} color={colors.error} />
+    )}
     <Text style={styles.errorText}>{message}</Text>
-    <TouchableOpacity
-      onPress={onRetry}
-      style={styles.button}
-      accessibilityLabel="Retry loading bookings"
-      accessibilityRole="button"
-    >
+    <AnimatedButton onPress={onRetry} style={styles.button} accessibilityLabel="Retry loading bookings" accessibilityRole="button">
       <Text style={styles.buttonText}>Try Again</Text>
-    </TouchableOpacity>
+    </AnimatedButton>
   </View>
 );
 
@@ -375,20 +402,46 @@ const BookingItem: React.FC<{
   }) => {
     const isExpanded = expandedId === item.id;
     const isApproved = item.status === 'APPROVED';
-    const { rating, experience, suggestions, purchaseInterest, submitted } = feedbackData;
+    const { submitted } = feedbackData;
 
     // Date and time formatting
-    const visitDateTime = new Date(`${item.date}T${item.time}`);
-    const formattedDate = visitDateTime.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-    const formattedTime = visitDateTime.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
+    let formattedDate = 'Invalid date';
+    let formattedTime = 'Invalid time';
+    try {
+      // Use ISO string if possible, fallback to concatenation
+      let dateObj: Date | null = null;
+      if (item.date && item.time) {
+        // Try to parse as ISO if possible
+        const isoString = `${item.date}T${item.time}`;
+        dateObj = new Date(isoString);
+        if (!isNaN(dateObj.getTime())) {
+          formattedDate = dateObj.toLocaleDateString('en-IN', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          });
+          formattedTime = dateObj.toLocaleTimeString('en-IN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+          });
+        } else {
+          // Fallback: try just date
+          const dateOnly = new Date(item.date);
+          if (!isNaN(dateOnly.getTime())) {
+            formattedDate = dateOnly.toLocaleDateString('en-IN', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            });
+          }
+          formattedTime = item.time || 'Invalid time';
+        }
+      }
+    } catch (e) {
+      formattedDate = item.date || 'Invalid date';
+      formattedTime = item.time || 'Invalid time';
+    }
 
     const statusColors = getStatusColor(item.status);
 

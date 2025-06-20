@@ -14,6 +14,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import WebView from 'react-native-webview';
+import Animated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+
 interface Camera {
   id: string;
   name: string;
@@ -22,6 +25,7 @@ interface Camera {
   status: 'online' | 'offline';
   lastActive?: string;
 }
+
 const CameraScreen = () => {
   const { userId } = useAuth();
   const [cameras, setCameras] = useState<Camera[]>([]);
@@ -33,7 +37,7 @@ const CameraScreen = () => {
   useEffect(() => {
     fetchCameras();
     return () => {
-      setSelectedCamera(null); 
+      setSelectedCamera(null); // Cleanup on unmount
     };
   }, [userId]);
 
@@ -65,9 +69,11 @@ const CameraScreen = () => {
     if (!ipAddress.startsWith('http') && !ipAddress.startsWith('rtsp')) {
       streamUrl = `http://${ipAddress}`;
     }
+    // Handle Axis cameras specifically
     if (ipAddress.includes('axis')) {
       return `${streamUrl}/axis-cgi/mjpg/video.cgi?resolution=640x480`;
     }
+    // Default MJPEG stream
     return `${streamUrl}/video`;
   };
 
@@ -134,41 +140,76 @@ const CameraScreen = () => {
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView style={styles.scrollView}>
         <View style={styles.content}>
-          <Text style={styles.header}>Security Cameras</Text>
-          <Text style={styles.subHeader}>Monitor your properties in real-time</Text>
+          {/* Add a hero banner at the top */}
+          <View style={{ marginBottom: 24 }}>
+            <Animated.View entering={FadeIn} exiting={FadeOut} layout={Layout.springify()} style={{
+              borderRadius: 20,
+              padding: 24,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: '#FF6B00',
+              marginHorizontal: 0,
+              marginTop: 8,
+              shadowColor: '#FF6B00',
+              shadowOpacity: 0.12,
+              shadowRadius: 16,
+              elevation: 8,
+            }}>
+              <Ionicons name="videocam" size={40} color="#fff" style={{ marginBottom: 8 }} />
+              <Text style={{ color: '#fff', fontSize: 20, fontWeight: 'bold', marginBottom: 4, letterSpacing: 0.5 }}>Security Cameras</Text>
+              <Text style={{ color: '#fff', fontSize: 13, textAlign: 'center', opacity: 0.85 }}>
+                Monitor your properties in real-time. Tap a camera to view its stream.
+              </Text>
+            </Animated.View>
+          </View>
 
+          {/* Animate camera cards and remove highlight, only show border on select */}
           {cameras.map((camera) => (
-            <TouchableOpacity
+            <Animated.View
               key={camera.id}
-              style={[styles.cameraCard, selectedCamera === camera.id && styles.selectedCameraCard]}
-              onPress={() => setSelectedCamera(camera.id === selectedCamera ? null : camera.id)}
+              entering={FadeIn}
+              exiting={FadeOut}
+              layout={Layout.springify()}
+              style={[styles.cameraCard, selectedCamera === camera.id && { borderWidth: 1, borderColor: '#FF6B00', backgroundColor: '#fff' }]}
             >
-              <View style={styles.cameraInfo}>
-                <Text style={styles.cameraName}>{camera.name}</Text>
-                <Text style={styles.cameraDetails}>{camera.ipAddress}</Text>
-                <View style={styles.statusContainer}>
-                  <View
-                    style={[
-                      styles.statusIndicator,
-                      { backgroundColor: camera.status === 'online' ? '#4CAF50' : '#FF5252' },
-                    ]}
-                  />
-                  <Text style={styles.statusText}>{camera.status}</Text>
+              <TouchableOpacity
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
+                onPress={() => {
+                  setSelectedCamera(camera.id === selectedCamera ? null : camera.id);
+                  Haptics.selectionAsync();
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`Select camera ${camera.name}`}
+                activeOpacity={0.92}
+              >
+                <View style={styles.cameraInfo}>
+                  <Text style={styles.cameraName}>{camera.name}</Text>
+                  <Text style={styles.cameraDetails}>{camera.ipAddress}</Text>
+                  <View style={styles.statusContainer}>
+                    <View
+                      style={[
+                        styles.statusIndicator,
+                        { backgroundColor: camera.status === 'online' ? '#4CAF50' : '#FF5252' },
+                      ]}
+                    />
+                    <Text style={styles.statusText}>{camera.status}</Text>
+                  </View>
                 </View>
-              </View>
-              <Ionicons
-                name={selectedCamera === camera.id ? 'chevron-up' : 'chevron-down'}
-                size={24}
-                color="#666"
-              />
-            </TouchableOpacity>
+                <Ionicons
+                  name={selectedCamera === camera.id ? 'chevron-up' : 'chevron-down'}
+                  size={24}
+                  color="#666"
+                />
+              </TouchableOpacity>
+            </Animated.View>
           ))}
 
+          {/* Animate stream section */}
           {selectedCamera && (
-            <View style={styles.streamSection}>
+            <Animated.View entering={FadeIn} exiting={FadeOut} layout={Layout.springify()} style={styles.streamSection}>
               {renderCameraStream(cameras.find((c) => c.id === selectedCamera) as Camera)}
               {streamError && <Text style={styles.errorText}>{streamError}</Text>}
-            </View>
+            </Animated.View>
           )}
         </View>
       </ScrollView>
