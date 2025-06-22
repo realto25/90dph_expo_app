@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/clerk-expo";
 import { useFonts } from "expo-font";
 import 'global.css'
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
 if (!CLERK_PUBLISHABLE_KEY) {
@@ -49,14 +49,30 @@ function InitialLayout() {
   const segments = useSegments();
   const router = useRouter();
   const [hasRedirected, setHasRedirected] = useState(false);
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
 
   useEffect(() => {
-    if (!isLoaded) {
-      console.log("[InitialLayout] Auth not loaded yet");
+    (async () => {
+      // Show onboarding only if not completed
+      const onboardingComplete = await AsyncStorage.getItem('onboardingComplete');
+      const isOnboardingRoute = segments[0]?.toLowerCase() === 'onboarding';
+      if (!onboardingComplete && !isOnboardingRoute) {
+        router.replace('/Onboarding');
+        setHasRedirected(true);
+        setOnboardingChecked(true);
+        return;
+      }
+      setOnboardingChecked(true);
+    })();
+  }, [segments, router]);
+
+  useEffect(() => {
+    if (!isLoaded || !onboardingChecked) {
       return;
     }
-
-    console.log("[InitialLayout] Auth state:", { isLoaded, isSignedIn, segments });
+    // Prevent any redirects if on onboarding screen
+    const isOnboardingRoute = segments[0]?.toLowerCase() === 'onboarding';
+    if (isOnboardingRoute) return;
 
     const inAuthGroup = segments[0] === "(auth)";
     const inGuestGroup = segments[0] === "(guest)";
@@ -72,16 +88,15 @@ function InitialLayout() {
     });
 
     if (!isSignedIn && !inAuthGroup) {
-      console.log("[InitialLayout] User not signed in, redirecting to sign-in...");
       router.replace("/(auth)/sign-in");
       setHasRedirected(true);
     } else if (isSignedIn && userId && !inAuthGroup && !hasRedirected) {
-      console.log("[InitialLayout] User signed in, redirecting to /Role...");
       router.replace("/(auth)/Role");
       setHasRedirected(true);
     }
-  }, [isLoaded, isSignedIn, userId, segments, router, hasRedirected]);
+  }, [isLoaded, isSignedIn, userId, segments, router, hasRedirected, onboardingChecked]);
 
+  if (!onboardingChecked) return null;
   return <Slot />;
 }
 

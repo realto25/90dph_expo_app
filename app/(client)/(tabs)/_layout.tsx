@@ -4,9 +4,28 @@ import { Tabs } from "expo-router";
 import { Ionicons, MaterialIcons, FontAwesome } from "@expo/vector-icons";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"; // Import useSafeAreaInsets
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'expo-router';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets(); // Get safe area insets
+  const router = useRouter();
+  const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const seen = await AsyncStorage.getItem('onboardingComplete');
+      if (!seen) {
+        setShowOnboarding(true);
+        router.replace('/Onboarding');
+      } else {
+        setShowOnboarding(false);
+      }
+    })();
+  }, [router]);
+
+  if (showOnboarding) return null; // Prevent rendering tabs while redirecting
 
   return (
     // Removed SafeAreaView here, as the Tabs component will handle it implicitly or

@@ -25,6 +25,7 @@ import * as Location from "expo-location";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import debounce from "lodash.debounce";
+import InputField from '../../../components/InputField';
 
 const { width, height } = Dimensions.get("window");
 
@@ -133,7 +134,6 @@ export default function Home() {
 
   const [currentSearchInput, setCurrentSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState(""); // This state will be debounced for filtering
-  const [activeFilter, setActiveFilter] = useState<string | null>(null); // State for active location filter
 
   const [showScrollTop, setShowScrollTop] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
@@ -155,24 +155,6 @@ export default function Home() {
         }
       }, 300),
     []
-  );
-
-  // Predefined location filters
-  const locationFilters = useMemo(
-    () => ["All", "South India", "Salem", "Coimbatore", "Chennai", "Bangalore"],
-    []
-  );
-
-  // Handle filter button press
-  const handleFilterPress = useCallback(
-    (filter: string) => {
-      if (Platform.OS !== "web") {
-        Haptics.selectionAsync();
-      }
-      setActiveFilter(filter === "All" ? null : filter); // Set to null for "All"
-      scrollRef.current?.scrollTo({ y: 0, animated: true }); // Scroll to top on filter change
-    },
-    [scrollRef]
   );
 
   // Fetch projects with retry logic
@@ -347,14 +329,9 @@ export default function Home() {
           project.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           project.state?.toLowerCase().includes(searchQuery.toLowerCase());
 
-        const matchesFilter = activeFilter
-          ? project.city?.toLowerCase().includes(activeFilter.toLowerCase()) ||
-            project.state?.toLowerCase().includes(activeFilter.toLowerCase())
-          : true; // If no active filter, all pass
-
-        return matchesSearch && matchesFilter;
+        return matchesSearch;
       }),
-    [projects, searchQuery, activeFilter] // Filter based on debounced searchQuery and activeFilter
+    [projects, searchQuery]
   );
 
   // Loading state
@@ -457,80 +434,18 @@ export default function Home() {
               </TouchableOpacity>
             </View>
           </View>
-          <View style={[styles.searchBarContainer, { backgroundColor: colors.surfaceHover }]}>
-            <Ionicons name="search" size={scale(20)} color={colors.text.tertiary} style={styles.searchIcon} />
-            <TextInput
-              style={[styles.searchInput, { color: colors.text.primary }]}
-              placeholder="Search projects..."
-              placeholderTextColor={colors.text.tertiary}
-              value={currentSearchInput}
-              onChangeText={(text) => {
-                setCurrentSearchInput(text);
-                debouncedSetSearchQuery(text);
-                setActiveFilter(null); // Clear filter when searching
-              }}
-              returnKeyType="search"
-              clearButtonMode="never" // We'll handle our own clear button
-              accessibilityLabel="Search projects"
-              accessibilityRole="search"
-            />
-            {currentSearchInput.length > 0 && (
-              <TouchableOpacity
-                onPress={() => {
-                  setCurrentSearchInput("");
-                  setSearchQuery("");
-                  debouncedSetSearchQuery.cancel();
-                }}
-                style={styles.clearSearchButton}
-                accessibilityLabel="Clear search"
-                accessibilityRole="button"
-              >
-                <Ionicons name="close-circle" size={scale(20)} color={colors.text.tertiary} />
-              </TouchableOpacity>
-            )}
-          </View>
-          {/* New: Horizontal Scroll Filter Buttons */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterButtonContainer}
-          >
-            {locationFilters.map((filter) => (
-              <TouchableOpacity
-                key={filter}
-                onPress={() => handleFilterPress(filter)}
-                style={[
-                  styles.filterButton,
-                  {
-                    backgroundColor:
-                      activeFilter === filter || (filter === "All" && activeFilter === null)
-                        ? colors.accent
-                        : colors.surfaceElevated,
-                    borderColor:
-                      activeFilter === filter || (filter === "All" && activeFilter === null)
-                        ? colors.accent
-                        : colors.border.light,
-                  },
-                ]}
-                accessibilityLabel={`Filter by ${filter}`}
-                accessibilityRole="button"
-              >
-                <Text
-                  style={[
-                    styles.filterButtonText,
-                    {
-                      color:
-                        activeFilter === filter || (filter === "All" && activeFilter === null)
-                          ? colors.text.inverse
-                          : colors.text.secondary,
-                    },
-                  ]}
-                >
-                  {filter}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          {/* Search input */}
+          <InputField
+            label=""
+            placeholder="Search projects, cities, states..."
+            icon="search"
+            value={currentSearchInput}
+            onChangeText={(text) => {
+              setCurrentSearchInput(text);
+              debouncedSetSearchQuery(text);
+            }}
+            className={`bg-${colorScheme === "dark" ? "gray-800" : "gray-100"} rounded-2xl text-base font-system text-${colorScheme === "dark" ? "white" : "gray-900"} shadow-sm ${currentSearchInput ? "border border-blue-300" : ""}`}
+          />
         </LinearGradient>
       </Animated.View>
 
@@ -563,11 +478,11 @@ export default function Home() {
               <Text style={styles.exploreButtonText}>Try Again</Text>
             </TouchableOpacity>
           </View>
-        ) : filteredProjects.length === 0 && (searchQuery !== "" || activeFilter !== null) ? (
+        ) : filteredProjects.length === 0 && searchQuery !== "" ? (
           <View style={styles.emptyStateContainer}>
             <Ionicons name="search-outline" size={scale(40)} color={colors.text.tertiary} />
             <Text style={[styles.emptyStateText, { color: colors.text.secondary }]}>
-              No results found. Adjust your search or filters.
+              No results found. Adjust your search.
             </Text>
             <TouchableOpacity
               style={[styles.exploreButton, { backgroundColor: colors.success }]}
@@ -575,12 +490,11 @@ export default function Home() {
                 setCurrentSearchInput("");
                 setSearchQuery("");
                 debouncedSetSearchQuery.cancel();
-                setActiveFilter(null); // Also clear active filter
               }}
-              accessibilityLabel="Clear search and filters"
+              accessibilityLabel="Clear search"
               accessibilityRole="button"
             >
-              <Text style={styles.exploreButtonText}>Clear Search & Filters</Text>
+              <Text style={styles.exploreButtonText}>Clear Search</Text>
             </TouchableOpacity>
           </View>
         ) : filteredProjects.length === 0 ? (
@@ -698,48 +612,6 @@ const styles = StyleSheet.create({
     ...commonShadow, // Apply common shadow
     borderWidth: 1,
     borderColor: themes.light.border.light,
-  },
-  searchBarContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: scale(12),
-    paddingHorizontal: scale(12),
-    marginTop: scale(12),
-    ...commonShadow, // Apply common shadow
-    height: scale(48), // Set a fixed height for consistency
-  },
-  searchIcon: {
-    marginRight: scale(8),
-  },
-  searchInput: {
-    flex: 1,
-    height: "100%", // Take full height of container
-    fontSize: scaleFont(16),
-    borderRadius: scale(12),
-    paddingVertical: 0, // Remove default vertical padding
-    paddingLeft: 0, // Remove default left padding
-  },
-  clearSearchButton: {
-    marginLeft: scale(8),
-    padding: scale(4),
-  },
-  // New styles for filter buttons
-  filterButtonContainer: {
-    paddingVertical: scale(10),
-    paddingHorizontal: scale(0), // No horizontal padding for the container itself
-  },
-  filterButton: {
-    paddingHorizontal: scale(16),
-    paddingVertical: scale(8),
-    borderRadius: scale(20),
-    borderWidth: 1,
-    marginRight: scale(8), // Space between buttons
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  filterButtonText: {
-    fontSize: scaleFont(14),
-    fontWeight: "600",
   },
   scrollContent: {
     paddingHorizontal: scale(16),

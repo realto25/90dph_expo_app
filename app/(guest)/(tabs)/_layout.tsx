@@ -1,8 +1,23 @@
 // app/(guest)/(tabs)/_layout.tsx
 import { Tabs } from "expo-router";
 import { useAuth } from "@clerk/clerk-expo"; // Not directly used in the provided snippet, but imported
-import { Text, TouchableOpacity } from "react-native"; // Text and TouchableOpacity are imported, but not used with bare text
+import { Text, TouchableOpacity, Dimensions, StyleSheet } from "react-native"; // Text and TouchableOpacity are imported, but not used with bare text
 import { Ionicons } from "@expo/vector-icons";
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  tabBar: {
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: 0,
+    elevation: 0,
+    height: Dimensions.get("window").height * 0.1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+});
 
 export default function TabLayout() {
   // const { signOut } = useAuth(); // Example of useAuth if needed
@@ -13,21 +28,7 @@ export default function TabLayout() {
         headerShown: false,
         tabBarActiveTintColor: "#f97316", // orange-500
         tabBarInactiveTintColor: "#6b7280", // gray-500
-        tabBarStyle: {
-          backgroundColor: "white",
-          borderTopColor: "#f97316",
-          borderTopEndRadius: 20,
-          borderTopStartRadius: 20,
-          // Add a subtle shadow for iOS, elevation for Android
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.05,
-          shadowRadius: 5,
-          elevation: 5, // Android shadow
-          height: 60, // Consistent height for tab bar
-          paddingBottom: 5, // Adjust padding for icon/label
-          paddingTop: 5,
-        },
+        tabBarStyle: styles.tabBar,
         tabBarLabelStyle: {
           fontSize: 12, // Smaller font for label
           fontWeight: '600', // Semibold
@@ -38,9 +39,10 @@ export default function TabLayout() {
         name="Home"
         options={{
           title: "Home",
-          tabBarIcon: ({ color }) => (
-            <Ionicons size={24} name="home-outline" color={color} />
-          ), // Size adjusted for consistency
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "home" : "home-outline"} size={size + (focused ? 2 : 0)} color={color} />
+          ),
+          accessibilityLabel: "Navigate to Home",
         }}
       />
       <Tabs.Screen

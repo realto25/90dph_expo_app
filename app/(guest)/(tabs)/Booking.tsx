@@ -12,6 +12,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -59,6 +60,9 @@ interface FeedbackState {
 }
 
 type IconName = 'person-circle-outline' | 'calendar-outline' | 'alert-circle-outline';
+
+// --- QR code size for responsive design ---
+const qrSize = Math.min(Dimensions.get("window").width, Dimensions.get("window").height) * 0.4;
 
 const Booking: React.FC = () => {
   const { userId, isSignedIn } = useAuth();
@@ -525,9 +529,9 @@ const QrCodeSection: React.FC<{ item: VisitRequest }> = ({ item }) => {
         <>
           <QRCode
             value={qrCodeValue}
-            size={scale(200)}
-            backgroundColor={colors.surfaceHover}
-            color={colors.text.primary}
+            size={qrSize}
+            backgroundColor="#fff7ed"
+            color="#1F2937"
           />
           <Text style={styles.qrCodeExpiry}>
             Expires at:{' '}
@@ -578,9 +582,10 @@ const FeedbackForm: React.FC<{
       <Text style={styles.feedbackFormTitle}>Share Your Feedback</Text>
       <RatingSection rating={rating} setRating={(value) => setFeedbackData({ rating: value })} />
       <TextInputSection
-        label="Tell us about your experience"
+        label="Tell us about your experience *"
         value={experience}
         onChangeText={(text) => setFeedbackData({ experience: text })}
+        style={{ height: 100 }}
       />
       <TextInputSection
         label="Do you have any suggestions for improvement?"
@@ -638,13 +643,14 @@ const TextInputSection: React.FC<{
   label: string;
   value: string;
   onChangeText: (text: string) => void;
-}> = ({ label, value, onChangeText }) => (
+  style?: any;
+}> = ({ label, value, onChangeText, style }) => (
   <View style={styles.textInputSection}>
     <Text style={styles.sectionLabel}>
       {label} <Text style={styles.required}>*</Text>
     </Text>
     <TextInput
-      style={styles.textInput}
+      style={[styles.textInput, style]}
       placeholder="Your thoughts..."
       placeholderTextColor={colors.text.tertiary}
       multiline

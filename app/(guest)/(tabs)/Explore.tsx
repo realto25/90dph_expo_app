@@ -20,6 +20,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getAllPlots, PlotType } from '../../../lib/api';
 import * as Haptics from 'expo-haptics';
+import tw from 'twrnc';
 
 const { width } = Dimensions.get('window'); // No need for height if not directly used
 
@@ -132,7 +133,7 @@ export default function ExploreScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     router.push({
-      pathname: '/(guest)/plot/[id]' as 'string',
+      pathname: '/(guest)/plot/[id]',
       params: { id: plotId },
     });
   };
@@ -321,22 +322,18 @@ export default function ExploreScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
-      {/* Search Bar */}
-      <View style={styles.searchBarWrapper}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search-outline" size={scale(20)} color={colors.text.tertiary} />
+      {/* Search Bar with Tailwind classes */}
+      <View style={tw`p-4`}>
+        <View style={tw`flex-row items-center bg-white rounded-xl px-4 py-3 shadow-sm ${searchQuery ? 'border border-orange-300' : ''}`}> 
+          <Ionicons name="search-outline" size={20} color="#FF6B00" style={tw`mr-2`} />
           <TextInput
-            placeholder="Search by plot name or location"
-            style={styles.searchInput}
+            placeholder="Search Plots"
+            style={[tw`ml-2 flex-1 text-gray-800`, {fontSize: scaleFont(16)}]}
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholderTextColor={colors.text.tertiary}
+            placeholderTextColor="#9CA3AF"
+            accessibilityHint="Type to search plots by title or location"
           />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchButton}>
-              <Ionicons name="close-circle" size={scale(20)} color={colors.text.tertiary} />
-            </TouchableOpacity>
-          )}
         </View>
       </View>
 
@@ -344,7 +341,7 @@ export default function ExploreScreen() {
         data={filteredPlots}
         renderItem={renderPlotItem}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.flatListContent}
+        contentContainerStyle={tw`px-4 pb-10`}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -354,12 +351,14 @@ export default function ExploreScreen() {
           />
         }
         ListEmptyComponent={
-          <View style={styles.emptyStateContainer}>
-            <Ionicons name="search" size={scale(64)} color={colors.accentLight} />
-            <Text style={styles.emptyStateTitle}>No plots found</Text>
-            <Text style={styles.emptyStateText}>
-              Try searching with different keywords or pull to refresh.
-            </Text>
+          <View style={tw`items-center justify-center py-20`}>
+            <Ionicons name="search" size={64} color="#FFB380" />
+            <Text style={tw`mt-4 text-lg font-semibold text-gray-600`}>No plots found</Text>
+            {searchQuery ? (
+              <TouchableOpacity onPress={() => setSearchQuery("")} style={tw`mt-4 px-4 py-2 bg-blue-500 rounded-xl`}>
+                <Text style={tw`text-white`}>Clear Search</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         }
       />
