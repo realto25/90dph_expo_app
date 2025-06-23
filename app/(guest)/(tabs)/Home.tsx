@@ -16,47 +16,48 @@ import {
   Platform,
   RefreshControl,
   StyleSheet,
-  TextInput,
   useColorScheme,
-  AccessibilityInfo,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import debounce from "lodash.debounce";
-import InputField from '../../../components/InputField';
+import SearchBar from "../../../components/SearchBar";
 
 const { width, height } = Dimensions.get("window");
 
-// Scaling utilities for responsive design
+// Enhanced scaling utilities with maximum limits
 const scaleFont = (size: number) => {
   const guidelineBaseWidth = 375;
-  return Math.round((size * width) / guidelineBaseWidth);
+  const scaledSize = (size * width) / guidelineBaseWidth;
+  return Math.min(scaledSize, size * 1.5); // Limit maximum scaling
 };
 
 const scale = (size: number) => {
   const guidelineBaseWidth = 375;
-  return Math.round((size * width) / guidelineBaseWidth);
+  const scaledSize = (size * width) / guidelineBaseWidth;
+  return Math.min(scaledSize, size * 1.5); // Limit maximum scaling
 };
 
-// Color palette with light and dark mode support
+// Enhanced color palette with better contrast ratios
 const themes = {
   light: {
     primary: "#0F172A",
     secondary: "#1E293B",
     accent: "#4F46E5",
-    accentLight: "#A5B4FC",
-    success: "#F97316",
-    warning: "#F59E0B",
-    error: "#EF4444",
+    accentLight: "#6366F1",
+    accentLighter: "#C7D2FE",
+    success: "#16A34A",
+    warning: "#D97706",
+    error: "#DC2626",
     surface: "#FFFFFF",
     surfaceElevated: "#F8FAFC",
     surfaceHover: "#F1F5F9",
     text: {
       primary: "#0F172A",
-      secondary: "#475569",
-      tertiary: "#94A3B8",
+      secondary: "#334155",
+      tertiary: "#64748B",
       inverse: "#FFFFFF",
     },
     border: {
@@ -66,38 +67,51 @@ const themes = {
     },
   },
   dark: {
-    primary: "#1E293B",
-    secondary: "#0F172A",
+    primary: "#F8FAFC",
+    secondary: "#E2E8F0",
     accent: "#818CF8",
-    accentLight: "#C7D2FE",
-    success: "#F97316",
+    accentLight: "#6366F1",
+    accentLighter: "#4F46E5",
+    success: "#22C55E",
     warning: "#F59E0B",
-    error: "#F87171",
+    error: "#EF4444",
     surface: "#0F172A",
     surfaceElevated: "#1E293B",
     surfaceHover: "#334155",
     text: {
       primary: "#F8FAFC",
-      secondary: "#CBD5E1",
+      secondary: "#E2E8F0",
       tertiary: "#94A3B8",
       inverse: "#0F172A",
     },
     border: {
-      light: "#475569",
-      medium: "#64748B",
-      dark: "#94A3B8",
+      light: "#1E293B",
+      medium: "#334155",
+      dark: "#475569",
     },
   },
 };
 
-// Reusable shadow style
-const commonShadow = {
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.1,
-  shadowRadius: 8,
-  elevation: 4,
-};
+// Enhanced shadow styles with better platform adaptation
+const commonShadow = Platform.select({
+  ios: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  android: {
+    elevation: 4,
+    shadowColor: "#000",
+  },
+  default: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+});
 
 interface ProjectType {
   id: string;
@@ -131,25 +145,21 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
-
-  const [currentSearchInput, setCurrentSearchInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState(""); // This state will be debounced for filtering
-
+  const [searchQuery, setSearchQuery] = useState("");
   const [showScrollTop, setShowScrollTop] = useState(false);
+
   const scrollRef = useRef<ScrollView>(null);
   const headerScrollY = useRef(new Animated.Value(0)).current;
   const fabAnim = useRef(new Animated.Value(1)).current;
-
-  // Animations
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(50))[0];
   const shimmerAnim = useState(new Animated.Value(0))[0];
 
-  // Debounced search logic
+  // Enhanced debounced search with cleanup
   const debouncedSetSearchQuery = useMemo(
     () =>
       debounce((query: string) => {
-        setSearchQuery(query); // Update the state that filteredProjects depends on
+        setSearchQuery(query);
         if (Platform.OS !== "web") {
           Haptics.selectionAsync();
         }
@@ -157,7 +167,7 @@ export default function Home() {
     []
   );
 
-  // Fetch projects with retry logic
+  // Enhanced fetch with error handling and caching
   const fetchProjects = useCallback(async (retryCount = 3) => {
     setLoading(true);
     setError(null);
@@ -169,9 +179,10 @@ export default function Home() {
       }
     } catch (err) {
       if (retryCount > 0) {
-        setTimeout(() => fetchProjects(retryCount - 1), 1000);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await fetchProjects(retryCount - 1);
       } else {
-        setError("Failed to load projects. Please check your connection.");
+        setError("Failed to load projects. Please check your connection and try again.");
         console.error("Fetch projects error:", err);
       }
     } finally {
@@ -179,22 +190,35 @@ export default function Home() {
     }
   }, []);
 
-  // Pull-to-refresh
+  // Enhanced pull-to-refresh with timeout
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchProjects();
-    setRefreshing(false);
+    try {
+      await Promise.race([
+        fetchProjects(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 10000))
+      ]);
+    } catch (err) {
+      setError("Refresh timed out. Please check your connection.");
+    } finally {
+      setRefreshing(false);
+    }
   }, [fetchProjects]);
 
-  // Get user location
+  // Enhanced location fetching with timeout
   const getLocation = useCallback(async () => {
     try {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") {
-        setLocationError("Location permission denied. Enable it in settings.");
+        setLocationError("Location permission required for nearby projects");
         return;
       }
-      let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      
+      const location = await Promise.race([
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000))
+      ]);
+      
       setUserLocation({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
@@ -204,18 +228,20 @@ export default function Home() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     } catch (err) {
-      setLocationError("Unable to get location. Please try again.");
+      setLocationError("Location request timed out. Please try again.");
       console.error("Location error:", err);
     }
   }, []);
 
-  // Lifecycle hooks
+  // Initial data loading
   useEffect(() => {
-    getLocation();
-    fetchProjects();
+    const init = async () => {
+      await Promise.all([getLocation(), fetchProjects()]);
+    };
+    init();
   }, [getLocation, fetchProjects]);
 
-  // Initial animations
+  // Animation effects
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -231,86 +257,91 @@ export default function Home() {
     ]).start();
   }, [fadeAnim, slideAnim]);
 
-  // Shimmer animation for skeleton loader
+  // Cleanup debounce on unmount
   useEffect(() => {
-    if (loading) {
-      Animated.loop(
-        Animated.timing(shimmerAnim, {
-          toValue: 1,
-          duration: 1200,
-          useNativeDriver: true,
-        })
-      ).start();
-    } else {
-      shimmerAnim.stopAnimation();
+    return () => debouncedSetSearchQuery.cancel();
+  }, [debouncedSetSearchQuery]);
+
+  // Enhanced filtered projects with location sorting
+  const filteredProjects = useMemo(() => {
+    let results = projects.filter((project) => {
+      const matchesSearch =
+        project.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        project.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        project.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        project.state?.toLowerCase().includes(searchQuery.toLowerCase());
+
+      return matchesSearch;
+    });
+
+    // Sort by distance if location is available
+    if (userLocation) {
+      results = results.sort((a, b) => {
+        const distanceA = a.latitude && a.longitude ? 
+          Math.sqrt(
+            Math.pow(a.latitude - userLocation.latitude, 2) + 
+            Math.pow(a.longitude - userLocation.longitude, 2)
+          ) : Infinity;
+        const distanceB = b.latitude && b.longitude ? 
+          Math.sqrt(
+            Math.pow(b.latitude - userLocation.latitude, 2) + 
+            Math.pow(b.longitude - userLocation.longitude, 2)
+          ) : Infinity;
+        return distanceA - distanceB;
+      });
     }
-  }, [loading, shimmerAnim]);
 
-  // FAB pulse animation
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(fabAnim, {
-          toValue: 1.1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fabAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, [fabAnim]);
+    return results;
+  }, [projects, searchQuery, userLocation]);
 
-  // Scroll handler for "scroll to top" visibility
-  const handleScroll = useCallback(
-    Animated.event([{ nativeEvent: { contentOffset: { y: headerScrollY } } }], {
-      useNativeDriver: false,
-      listener: (event: any) => {
-        setShowScrollTop(event.nativeEvent.contentOffset.y > height / 2);
-      },
-    }),
-    []
-  );
-
-  // Skeleton loader
+  // Skeleton Loader with improved accessibility
   const SkeletonLoader = React.memo(() => {
     const translateX = shimmerAnim.interpolate({
       inputRange: [0, 1],
       outputRange: [-width, width],
     });
 
-    const ShimmerOverlay = () => (
-      <Animated.View
-        style={[
-          StyleSheet.absoluteFillObject,
-          {
-            transform: [{ translateX }],
-            backgroundColor: "rgba(255,255,255,0.2)",
-          },
-        ]}
-      />
-    );
-
     return (
-      <View style={styles.skeletonContainer}>
-        {[...Array(3)].map((_, index) => (
+      <View style={styles.skeletonContainer} accessibilityLabel="Loading content">
+        {[...Array(4)].map((_, index) => (
           <View
             key={`skeleton-${index}`}
             style={[styles.skeletonCard, { width: width * 0.9 }]}
             accessible={false}
           >
             <View style={styles.skeletonImage}>
-              <ShimmerOverlay />
+              <Animated.View
+                style={[
+                  StyleSheet.absoluteFillObject,
+                  {
+                    transform: [{ translateX }],
+                    backgroundColor: "rgba(255,255,255,0.2)",
+                  },
+                ]}
+              />
             </View>
             <View style={styles.skeletonContent}>
               <View style={styles.skeletonTitle}>
-                <ShimmerOverlay />
+                <Animated.View
+                  style={[
+                    StyleSheet.absoluteFillObject,
+                    {
+                      transform: [{ translateX }],
+                      backgroundColor: "rgba(255,255,255,0.2)",
+                    },
+                  ]}
+                />
               </View>
               <View style={styles.skeletonSubtitle}>
-                <ShimmerOverlay />
+                <Animated.View
+                  style={[
+                    StyleSheet.absoluteFillObject,
+                    {
+                      transform: [{ translateX }],
+                      backgroundColor: "rgba(255,255,255,0.2)",
+                    },
+                  ]}
+                />
               </View>
             </View>
           </View>
@@ -319,22 +350,7 @@ export default function Home() {
     );
   });
 
-  // Filtered projects
-  const filteredProjects = useMemo(
-    () =>
-      projects.filter((project) => {
-        const matchesSearch =
-          project.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          project.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          project.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          project.state?.toLowerCase().includes(searchQuery.toLowerCase());
-
-        return matchesSearch;
-      }),
-    [projects, searchQuery]
-  );
-
-  // Loading state
+  // Loading state with better visual feedback
   if (!isAuthLoaded || !isUserLoaded) {
     return (
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
@@ -345,7 +361,7 @@ export default function Home() {
           style={styles.loadingContainer}
         >
           <ActivityIndicator size="large" color={colors.text.inverse} />
-          <Text style={styles.loadingText}>Loading your experience...</Text>
+          <Text style={styles.loadingText}>Preparing your dashboard...</Text>
         </LinearGradient>
       </SafeAreaView>
     );
@@ -363,13 +379,19 @@ export default function Home() {
   // Header animations
   const headerOpacity = headerScrollY.interpolate({
     inputRange: [0, 100],
-    outputRange: [1, 0.9],
+    outputRange: [1, 0.95],
     extrapolate: "clamp",
   });
 
   const headerTranslateY = headerScrollY.interpolate({
     inputRange: [0, 100],
-    outputRange: [0, -20],
+    outputRange: [0, -10],
+    extrapolate: "clamp",
+  });
+
+  const headerScale = headerScrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [1, 0.98],
     extrapolate: "clamp",
   });
 
@@ -377,11 +399,21 @@ export default function Home() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.surface }]} edges={["top", "bottom"]}>
       <StatusBar
         barStyle={colorScheme === "dark" ? "light-content" : "dark-content"}
-        backgroundColor={colors.surface}
+        backgroundColor="transparent"
         translucent
       />
+      
       <Animated.View
-        style={[styles.header, { opacity: headerOpacity, transform: [{ translateY: headerTranslateY }] }]}
+        style={[
+          styles.header, 
+          { 
+            opacity: headerOpacity, 
+            transform: [
+              { translateY: headerTranslateY },
+              { scale: headerScale }
+            ] 
+          }
+        ]}
       >
         <LinearGradient
           colors={[colors.surface, colors.surfaceElevated]}
@@ -391,60 +423,77 @@ export default function Home() {
         >
           <View style={styles.headerContent}>
             <View style={styles.headerTextContainer}>
-              <Text style={[styles.headerTitle, { color: colors.text.primary }]}>
+              <Text 
+                style={[styles.headerTitle, { color: colors.text.primary }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              >
                 Welcome back{user?.firstName ? `, ${user.firstName}` : ""}
               </Text>
               <Text style={[styles.headerSubtitle, { color: colors.text.secondary }]}>
-                {new Date().toLocaleDateString("en-IN", {
+                {new Date().toLocaleDateString("en-US", {
                   weekday: "long",
                   month: "long",
                   day: "numeric",
                 })}
               </Text>
             </View>
+            
             <View style={styles.headerActions}>
-              {userLocation ? (
-                <TouchableOpacity
-                  onPress={getLocation}
-                  style={[styles.locationButton, { backgroundColor: colors.success + "15" }]}
-                  accessibilityLabel="Refresh location"
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="location" size={scale(14)} color={colors.success} />
-                  <Text style={[styles.locationText, { color: colors.success }]}>Location Active</Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  onPress={getLocation}
-                  style={[styles.locationButton, { backgroundColor: colors.error + "15" }]}
-                  accessibilityLabel="Enable location"
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="location" size={scale(14)} color={colors.error} />
-                  <Text style={[styles.locationText, { color: colors.error }]}>Enable Location</Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                onPress={getLocation}
+                style={[
+                  styles.locationButton, 
+                  { 
+                    backgroundColor: userLocation ? 
+                      `${colors.success}15` : `${colors.error}15`,
+                    borderColor: userLocation ? 
+                      colors.success : colors.error
+                  }
+                ]}
+                accessibilityLabel={userLocation ? "Refresh location" : "Enable location"}
+                accessibilityRole="button"
+              >
+                <Ionicons 
+                  name="location" 
+                  size={scale(14)} 
+                  color={userLocation ? colors.success : colors.error} 
+                />
+                <Text style={[
+                  styles.locationText, 
+                  { color: userLocation ? colors.success : colors.error }
+                ]}>
+                  {userLocation ? "Location Active" : "Enable Location"}
+                </Text>
+              </TouchableOpacity>
+              
               <TouchableOpacity
                 onPress={() => router.push("/Notifications")}
-                style={styles.notificationButton}
+                style={[
+                  styles.notificationButton,
+                  { backgroundColor: colors.surface, borderColor: colors.border.light }
+                ]}
                 accessibilityLabel="Notifications"
                 accessibilityRole="button"
               >
-                <Ionicons name="notifications-outline" size={scale(20)} color={colors.accent} />
+                <Ionicons 
+                  name="notifications-outline" 
+                  size={scale(20)} 
+                  color={colors.accent} 
+                />
+                <View style={[
+                  styles.notificationBadge,
+                  { backgroundColor: colors.accent }
+                ]} />
               </TouchableOpacity>
             </View>
           </View>
-          {/* Search input */}
-          <InputField
-            label=""
-            placeholder="Search projects, cities, states..."
-            icon="search"
-            value={currentSearchInput}
-            onChangeText={(text) => {
-              setCurrentSearchInput(text);
-              debouncedSetSearchQuery(text);
-            }}
-            className={`bg-${colorScheme === "dark" ? "gray-800" : "gray-100"} rounded-2xl text-base font-system text-${colorScheme === "dark" ? "white" : "gray-900"} shadow-sm ${currentSearchInput ? "border border-blue-300" : ""}`}
+          
+          <SearchBar
+            placeholder="Search projects, locations..."
+            value={searchQuery}
+            onChangeText={(text) => debouncedSetSearchQuery(text)}
+            colors={colors}
           />
         </LinearGradient>
       </Animated.View>
@@ -452,75 +501,111 @@ export default function Home() {
       <ScrollView
         ref={scrollRef}
         scrollEventThrottle={16}
-        onScroll={handleScroll}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: headerScrollY } } }],
+          {
+            useNativeDriver: false,
+            listener: (event) => {
+              setShowScrollTop(event.nativeEvent.contentOffset.y > height / 3);
+            },
+          }
+        )}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={colors.accent}
             colors={[colors.accent, colors.accentLight]}
+            progressBackgroundColor={colors.surface}
           />
         }
         contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
       >
         {loading ? (
           <SkeletonLoader />
         ) : error ? (
           <View style={styles.emptyStateContainer}>
-            <Ionicons name="alert-circle-outline" size={scale(40)} color={colors.error} />
-            <Text style={[styles.emptyStateText, { color: colors.text.secondary }]}>{error}</Text>
+            <Ionicons 
+              name="alert-circle-outline" 
+              size={scale(40)} 
+              color={colors.error} 
+            />
+            <Text style={[styles.emptyStateText, { color: colors.text.secondary }]}>
+              {error}
+            </Text>
             <TouchableOpacity
-              style={[styles.exploreButton, { backgroundColor: colors.success }]}
+              style={[styles.actionButton, { backgroundColor: colors.accent }]}
               onPress={() => fetchProjects()}
               accessibilityLabel="Retry loading projects"
               accessibilityRole="button"
             >
-              <Text style={styles.exploreButtonText}>Try Again</Text>
+              <Text style={styles.actionButtonText}>Try Again</Text>
             </TouchableOpacity>
           </View>
-        ) : filteredProjects.length === 0 && searchQuery !== "" ? (
+        ) : filteredProjects.length === 0 && searchQuery ? (
           <View style={styles.emptyStateContainer}>
-            <Ionicons name="search-outline" size={scale(40)} color={colors.text.tertiary} />
+            <Ionicons 
+              name="search-outline" 
+              size={scale(40)} 
+              color={colors.text.tertiary} 
+            />
             <Text style={[styles.emptyStateText, { color: colors.text.secondary }]}>
-              No results found. Adjust your search.
+              No projects match your search. Try different keywords.
             </Text>
             <TouchableOpacity
-              style={[styles.exploreButton, { backgroundColor: colors.success }]}
-              onPress={() => {
-                setCurrentSearchInput("");
-                setSearchQuery("");
-                debouncedSetSearchQuery.cancel();
-              }}
+              style={[styles.actionButton, { backgroundColor: colors.accent }]}
+              onPress={() => debouncedSetSearchQuery("")}
               accessibilityLabel="Clear search"
               accessibilityRole="button"
             >
-              <Text style={styles.exploreButtonText}>Clear Search</Text>
+              <Text style={styles.actionButtonText}>Clear Search</Text>
             </TouchableOpacity>
           </View>
         ) : filteredProjects.length === 0 ? (
           <View style={styles.emptyStateContainer}>
-            <Ionicons name="sad-outline" size={scale(40)} color={colors.text.tertiary} />
-            <Text style={[styles.emptyStateText, { color: colors.text.secondary }]}>No projects found.</Text>
+            <Ionicons 
+              name="home-outline" 
+              size={scale(40)} 
+              color={colors.text.tertiary} 
+            />
+            <Text style={[styles.emptyStateText, { color: colors.text.secondary }]}>
+              No projects available at the moment. Check back later.
+            </Text>
             <TouchableOpacity
-              style={[styles.exploreButton, { backgroundColor: colors.success }]}
+              style={[styles.actionButton, { backgroundColor: colors.accent }]}
               onPress={fetchProjects}
               accessibilityLabel="Refresh projects"
               accessibilityRole="button"
             >
-              <Text style={styles.exploreButtonText}>Refresh</Text>
+              <Text style={styles.actionButtonText}>Refresh</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+          <Animated.View 
+            style={{ 
+              opacity: fadeAnim, 
+              transform: [{ translateY: slideAnim }],
+              width: '100%'
+            }}
+          >
+            <Text style={[
+              styles.resultsText, 
+              { color: colors.text.secondary }
+            ]}>
+              Showing {filteredProjects.length} {filteredProjects.length === 1 ? 'project' : 'projects'}
+              {searchQuery ? ` matching "${searchQuery}"` : ''}
+            </Text>
+            
             {filteredProjects.map((project, index) => (
               <ProjectCard
-                key={project.id}
+                key={`${project.id}-${index}`}
                 project={{
                   ...project,
                   name: project.name || "Untitled Project",
                   city: project.city || "Unknown City",
                   description: project.description || "No description available",
-                  imageUrl: project.imageUrl || "https://via.placeholder.com/150",
+                  imageUrl: project.imageUrl || "https://via.placeholder.com/300",
                   rating: project.rating ?? 0,
                   plotsAvailable: project.plotsAvailable ?? 0,
                 }}
@@ -528,7 +613,11 @@ export default function Home() {
                   Haptics.selectionAsync();
                   router.push(`/project/${project.id}`);
                 }}
-                style={{ marginBottom: index === filteredProjects.length - 1 ? 0 : scale(16) }}
+                style={{ 
+                  marginBottom: index === filteredProjects.length - 1 ? scale(24) : scale(16),
+                  backgroundColor: colors.surfaceElevated,
+                }}
+                colors={colors}
               />
             ))}
           </Animated.View>
@@ -536,14 +625,35 @@ export default function Home() {
       </ScrollView>
 
       {showScrollTop && (
-        <Animated.View style={[styles.fab, { transform: [{ scale: fabAnim }] }]}>
+        <Animated.View 
+          style={[
+            styles.fab, 
+            { 
+              transform: [{ scale: fabAnim }],
+              shadowColor: colors.primary,
+            }
+          ]}
+        >
           <TouchableOpacity
-            onPress={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}
-            style={[styles.fabButton, { backgroundColor: colors.accent }]}
+            onPress={() => {
+              scrollRef.current?.scrollTo({ y: 0, animated: true });
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+            style={[
+              styles.fabButton, 
+              { 
+                backgroundColor: colors.accent,
+                shadowColor: colors.primary,
+              }
+            ]}
             accessibilityLabel="Scroll to top"
             accessibilityRole="button"
           >
-            <Ionicons name="arrow-up" size={scale(24)} color={colors.text.inverse} />
+            <Ionicons 
+              name="arrow-up" 
+              size={scale(24)} 
+              color={colors.text.inverse} 
+            />
           </TouchableOpacity>
         </Animated.View>
       )}
@@ -557,99 +667,106 @@ const styles = StyleSheet.create({
   },
   header: {
     zIndex: 10,
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0, // Removed scale(8) padding
   },
   headerGradient: {
     paddingHorizontal: scale(16),
+    paddingTop: scale(4), // Reduced from scale(8) to scale(4)
     paddingBottom: scale(16),
-    ...commonShadow, // Apply common shadow
+    ...commonShadow,
   },
   headerContent: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginBottom: scale(16),
+    marginTop: 0, // Removed scale(4) margin
   },
   headerTextContainer: {
     flex: 1,
+    marginRight: scale(8),
   },
   headerTitle: {
-    fontSize: scaleFont(28),
+    fontSize: scaleFont(24), // Reduced from 32 back to 24
     fontWeight: "700",
-    letterSpacing: -0.5,
-    lineHeight: scale(32),
+    lineHeight: scale(28), // Reduced from 36 to 28
+    marginBottom: scale(4),
   },
   headerSubtitle: {
-    fontSize: scaleFont(14),
+    fontSize: scaleFont(14), // Reduced from 16 back to 14
     fontWeight: "500",
-    marginTop: scale(4),
-    letterSpacing: 0.2,
+    opacity: 0.8,
   },
   headerActions: {
-    alignItems: "flex-end",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: scale(8),
   },
   locationButton: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: scale(12),
-    paddingVertical: scale(8),
+    paddingVertical: scale(6),
     borderRadius: scale(20),
-    marginBottom: scale(8),
-    borderWidth: 1, // Added border for consistency
-    borderColor: themes.light.border.medium, // Default border color
+    borderWidth: 1,
   },
   locationText: {
     fontSize: scaleFont(12),
     fontWeight: "600",
-    marginLeft: scale(6),
+    marginLeft: scale(4),
   },
   notificationButton: {
-    width: scale(40),
-    height: scale(40),
-    borderRadius: scale(20),
-    backgroundColor: themes.light.surface,
+    width: scale(36),
+    height: scale(36),
+    borderRadius: scale(18),
     alignItems: "center",
     justifyContent: "center",
-    ...commonShadow, // Apply common shadow
     borderWidth: 1,
-    borderColor: themes.light.border.light,
+    position: 'relative',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: scale(6),
+    right: scale(6),
+    width: scale(8),
+    height: scale(8),
+    borderRadius: scale(4),
   },
   scrollContent: {
     paddingHorizontal: scale(16),
-    paddingBottom: scale(32),
-    alignItems: "center",
+    paddingBottom: scale(24),
   },
   skeletonContainer: {
-    flex: 1,
-    marginTop: scale(16),
+    paddingTop: scale(8),
   },
   skeletonCard: {
     marginBottom: scale(16),
-    backgroundColor: themes.light.surface,
+    backgroundColor: themes.light.surfaceElevated,
     borderRadius: scale(12),
     overflow: "hidden",
-    ...commonShadow, // Apply common shadow
+    ...commonShadow,
   },
   skeletonImage: {
-    height: scale(160),
-    backgroundColor: themes.light.surfaceElevated,
+    height: scale(180),
+    backgroundColor: themes.light.surfaceHover,
     position: "relative",
     overflow: "hidden",
   },
   skeletonContent: {
-    padding: scale(12),
+    padding: scale(16),
   },
   skeletonTitle: {
     height: scale(20),
-    backgroundColor: themes.light.surfaceElevated,
-    borderRadius: scale(6),
-    marginBottom: scale(8),
-    width: "75%",
+    backgroundColor: themes.light.surfaceHover,
+    borderRadius: scale(4),
+    marginBottom: scale(12),
+    width: "70%",
     position: "relative",
     overflow: "hidden",
   },
   skeletonSubtitle: {
-    height: scale(14),
-    backgroundColor: themes.light.surfaceElevated,
+    height: scale(16),
+    backgroundColor: themes.light.surfaceHover,
     borderRadius: scale(4),
     width: "50%",
     position: "relative",
@@ -658,34 +775,25 @@ const styles = StyleSheet.create({
   emptyStateContainer: {
     justifyContent: "center",
     alignItems: "center",
-    padding: scale(24),
-    marginTop: scale(32),
-    backgroundColor: themes.light.surface,
+    padding: scale(32),
+    marginTop: scale(24),
+    backgroundColor: themes.light.surfaceElevated,
     borderRadius: scale(12),
-    ...commonShadow, // Apply common shadow
+    ...commonShadow,
   },
   emptyStateText: {
     fontSize: scaleFont(16),
     textAlign: "center",
-    marginTop: scale(12),
-    marginBottom: scale(16),
+    marginVertical: scale(16),
     lineHeight: scale(22),
   },
-  exploreButton: {
-    backgroundColor: themes.light.success,
+  actionButton: {
     paddingHorizontal: scale(24),
     paddingVertical: scale(12),
-    borderRadius: scale(12),
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: themes.light.success,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4,
+    borderRadius: scale(8),
+    ...commonShadow,
   },
-  exploreButtonText: {
+  actionButtonText: {
     color: themes.light.text.inverse,
     fontSize: scaleFont(16),
     fontWeight: "600",
@@ -695,19 +803,15 @@ const styles = StyleSheet.create({
     bottom: scale(24),
     right: scale(16),
     zIndex: 20,
+    ...commonShadow,
   },
   fabButton: {
-    width: scale(56),
-    height: scale(56),
-    borderRadius: scale(28),
-    backgroundColor: themes.light.accent,
+    width: scale(52),
+    height: scale(52),
+    borderRadius: scale(26),
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    ...commonShadow,
   },
   loadingContainer: {
     flex: 1,
@@ -719,6 +823,10 @@ const styles = StyleSheet.create({
     color: themes.light.text.inverse,
     fontSize: scaleFont(16),
     fontWeight: "500",
-    textAlign: "center",
+  },
+  resultsText: {
+    fontSize: scaleFont(14),
+    marginBottom: scale(12),
+    marginTop: scale(4),
   },
 });
