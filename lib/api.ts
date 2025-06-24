@@ -737,3 +737,19 @@ export const deleteCamera = async (id: string, clerkId: string): Promise<void> =
     throw new Error('Failed to delete camera');
   }
 };
+
+// Notifications API
+export const getNotificationsForRole = async (role: string) => {
+  try {
+    if (!role) throw new Error('Role is required');
+    const res = await api.get(`/notifications/for-role?role=${encodeURIComponent(role)}`);
+    return Array.isArray(res.data.notifications) ? res.data.notifications : [];
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    if (isAxiosError(error)) {
+      const message = error.response?.data?.error || 'Failed to load notifications';
+      throw new Error(message);
+    }
+    throw new Error('Failed to load notifications');
+  }
+};
